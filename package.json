@@ -1,0 +1,28 @@
+{
+  "name": "bitcoinfiles",
+  "version": "0.0.1",
+  "description": "Upload and Download files to Bitcoin Cash blockchain",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simpleledger/bitcoinfilesjs.git"
+  },
+  "keywords": [
+    "BCH"
+  ],
+  "author": "James Cramer",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/simpleledger/bitcoinfilesjs/issues"
+  },
+  "homepage": "https://github.com/simpleledger/bitcoinfilesjs#readme",
+  "dependencies": {
+    "bitbox-cli": "^1.7.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0"
+  }
+}
