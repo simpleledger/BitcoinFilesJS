@@ -237,24 +237,24 @@ class Bfp {
 
         // reverse order of chunks
         chunks = chunks.reverse()
-        let file = new Buffer(size);
+        let fileBuf = new Buffer(size);
         let index = 0;
         chunks.forEach(chunk => {
-            chunk.copy(file, index)
+            chunk.copy(fileBuf, index)
             index += chunk.length;
         });
 
         // TODO: check that metadata hash matches if one was provided.
         let passesHashCheck = false
         if(bfpMsg.sha256 != null){
-            let fileSha256 = BITBOX.Crypto.sha256(file);
+            let fileSha256 = BITBOX.Crypto.sha256(fileBuf);
             let res = Buffer.compare(fileSha256, bfpMsg.sha256);
             if(res == 0){
                 passesHashCheck = true;
             }
         }
 
-        return { passesHashCheck, file };
+        return { passesHashCheck, fileBuf };
     }
 
     static buildMetadataOpReturn(config) {
@@ -551,13 +551,25 @@ class Bfp {
         return false;
     }
 
-    static getFileUploadPaymentAddress (masterHDNode) {
-        let phrase = "sister phrase abandon hidden muscle envelope sausage employ public crush boil hospital";
+    static getFileUploadPaymentInfoFromHdNode(masterHdNode) {
+        let hdNode = BITBOX.HDNode.derivePath(masterHdNode, "m/44'/145'/1'");
+        let node0 = BITBOX.HDNode.derivePath(hdNode, '0/0');
+        let keyPair = BITBOX.HDNode.toKeyPair(node0);
+        let wif = BITBOX.ECPair.toWIF(keyPair);
+        let ecPair = BITBOX.ECPair.fromWIF(wif);
+        let address = BITBOX.ECPair.toLegacyAddress(ecPair);
+        let cashAddress = BITBOX.Address.toCashAddress(address);
+
+        return {address: cashAddress, wif: wif};
+    }
+
+    static getFileUploadPaymentInfoFromSeedPhrase(seedPhrase) {
+        let phrase = seedPhrase;
         let seedBuffer = BITBOX.Mnemonic.toSeed(phrase);
         // create HDNode from seed buffer
         let hdNode = BITBOX.HDNode.fromSeed(seedBuffer);
-        hdNode = BITBOX.HDNode.derivePath(hdNode, "m/44'/145'/1'");
-        let node0 = BITBOX.HDNode.derivePath(hdNode, '0/0');
+        let hdNode2 = BITBOX.HDNode.derivePath(hdNode, "m/44'/145'/1'");
+        let node0 = BITBOX.HDNode.derivePath(hdNode2, '0/0');
         let keyPair = BITBOX.HDNode.toKeyPair(node0);
         let wif = BITBOX.ECPair.toWIF(keyPair);
         let ecPair = BITBOX.ECPair.fromWIF(wif);
@@ -668,6 +680,19 @@ const BITBOXCli = require('bitbox-cli/lib/bitbox-cli').default
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 class BfpNetwork {
+
+    static async getUtxoWithRetry(address, retries = 40){
+		let result;
+		let count = 0;
+		while(result == undefined){
+			result = await this.getUtxo(address)
+			count++;
+			if(count > retries)
+				throw new Error("BITBOX.Address.utxo endpoint experienced a problem");
+			await sleep(250);
+		}
+		return result;
+    }
 
     static async getTransactionDetailsWithRetry(txid, retries = 40){
         let result;
