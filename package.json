@@ -1,20 +1,34 @@
 {
   "name": "bitcoinfiles",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Upload and Download files to Bitcoin Cash blockchain",
   "main": "index.js",
+  "files": [
+    "lib/",
+    "dist/"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha",
+    "build": "browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/simpleledger/bitcoinfilesjs.git"
   },
   "keywords": [
-    "BCH"
+    "BCH",
+    "bfp",
+    "bitcoin",
+    "cash",
+    "slp",
+    "simple",
+    "ledger",
+    "node",
+    "browser"
   ],
   "author": "James Cramer",
   "license": "MIT",
+  "unpkg": "dist/bitcoinfiles.min.js",
   "bugs": {
     "url": "https://github.com/simpleledger/bitcoinfilesjs/issues"
   },
@@ -23,6 +37,8 @@
     "bitbox-cli": "^1.7.0"
   },
   "devDependencies": {
-    "mocha": "^5.2.0"
+    "browserify": "^16.2.2",
+    "mocha": "^5.2.0",
+    "uglify-es": "^3.3.9"
   }
 }
