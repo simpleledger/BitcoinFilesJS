@@ -2,6 +2,10 @@
 
 bitcoinfilesjs is a JavaScript Library for building transactions for Bitcoin Files Protocol (BFP).  Methods for uploading and downloading files are provided [per the BFP specification](https://github.com/simpleledger/slp-specification/blob/master/bitcoinfiles.md).  For convenience, BITBOX network functionality has been built into the library.
 
+Other tools using the Bitcoin Files Protocol include:
+* [Electron Cash SLP Edition](http://electroncash.org/#slp)
+* [BitcoinFiles.com](http://bitcoinfiles.com)
+
 [![NPM](https://nodei.co/npm/bitcoinfiles.png)](https://nodei.co/npm/bitcoinfiles/)
 
 # Installation
@@ -17,21 +21,22 @@ bitcoinfilesjs is a JavaScript Library for building transactions for Bitcoin Fil
 ```javascript
 const bfp = require('bitcoinfiles').bfp;
 
+// 1 - download file using URI
 let result;
 (async function(){
-    // Mario.png TAKES ABOUT 6 SEC TO DOWNLOAD
     result = await bfp.downloadFile('bitcoinfile:7e4600323c934926369c136562f5483e3df79baf087c8dd2b0ed1aea69d5ee49');
     console.log("download complete.");
 })();
 
-// file is returned as a buffer within the result
-let fileBuffer = result.fileBuf;
+// Wait for download to complete -- Mario.png TAKES ABOUT 6 SEC TO DOWNLOAD!
 
-// result includes a boolean check telling you if the file's sha256 matches the file's metadata```
+// 2 - result includes a boolean check telling you if the file's sha256 matches the file's metadata```
 if(result.passesHashCheck){
     console.log("Success: downloaded file sha256 matches file's metadata");
 }
 
+// 3 - do something with the file...
+let fileBuffer = result.fileBuf;
 ```
 
 # Example File Upload 
@@ -68,7 +73,7 @@ console.log(uploadCost);
 let fundingAddress = 'bitcoincash:qqgvrkm0xpmwqgyhfm65qxv70tjtwma6lgk07ffv9u'
 let fundingWif = 'KzcuA9xnDRrb9cPh29N7EQbBhQQLMWtcrDwKbEMoahmwBNACNRfa'
 
-// 1) Make sure address above is funded with the amount equal to the uploadCost
+// 4 - Make sure address above is funded with the amount equal to the uploadCost
 let fundingUtxo;
 (async function(){
     let txos = await network.getUtxoWithRetry(fundingAddress);
@@ -78,7 +83,7 @@ let fundingUtxo;
 
 // wait for network to resolve...
 
-// 3 - upload the file
+// 5 - upload the file
 let fileId;
 (async function(){
  fileId = await bfp.uploadFile(fundingUtxo, fundingAddress, fundingWif, someFileBuffer, fileName, fileExt);
