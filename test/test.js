@@ -1,6 +1,6 @@
 const assert = require('assert');
 const bitcoinfiles = require('../index.js');
-const downloadFile = bitcoinfiles.downloadFile;
+const downloadFile = bitcoinfiles.bfp.downloadFile;
 describe('bitcoinfiles', function(){
     describe('download file', function(){
         it('downloads a valid file', async function(){
