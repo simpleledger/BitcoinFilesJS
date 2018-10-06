@@ -1,6 +1,8 @@
 const BITBOXCli = require('bitbox-cli/lib/bitbox-cli').default
     , BITBOX = new BITBOXCli()
 
+let bfp = require('./lib/bfp').bfp;
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 class BfpUtils {
@@ -165,5 +167,6 @@ class BfpMessage {
 
 
 module.exports = {
-    downloadFile: downloadFile
+    downloadFile: downloadFile,
+    bfp: bfp
 }
