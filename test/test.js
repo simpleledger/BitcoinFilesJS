@@ -36,7 +36,7 @@ describe('bitcoinfiles', function(){
             // download mario.png with size of 1723
             let res = await bfp.downloadFile('bitcoinfile:7e4600323c934926369c136562f5483e3df79baf087c8dd2b0ed1aea69d5ee49');
             
-            assert.equal(res.file.length, 1723);
+            assert.equal(res.fileBuf.length, 1723);
             assert.equal(res.passesHashCheck, true);
         });
         it('downloads a file and fails hash check, wrong hash', async function(){
