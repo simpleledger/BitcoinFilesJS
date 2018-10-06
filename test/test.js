@@ -2,7 +2,7 @@ const assert = require('assert');
 const bitcoinfiles = require('../index.js');
 const bfp = bitcoinfiles.bfp;
 describe('bitcoinfiles', function(){
-    describe('Cost estimating for uploads', function(){
+    describe('file upload cost estimates', function(){
         it('estimates fee for multi-chunk outside of metadata chunk', function(){
             let config = {
                 msgType: 1,
@@ -30,14 +30,20 @@ describe('bitcoinfiles', function(){
 
         });
     });
-    describe('download file', function(){
-        it('downloads a file and hash valid file sha256', async function(){
+    describe('file downloads', function(){
+        it('downloads a file and checks file sha256 against metadata', async function(){
             this.timeout(15000);
             // download mario.png with size of 1723
-            let buffer = await bfp.downloadFile('bitcoinfile:7e4600323c934926369c136562f5483e3df79baf087c8dd2b0ed1aea69d5ee49');
-            assert.equal(buffer.length, 1723)
+            let res = await bfp.downloadFile('bitcoinfile:7e4600323c934926369c136562f5483e3df79baf087c8dd2b0ed1aea69d5ee49');
+            
+            assert.equal(res.file.length, 1723);
+            assert.equal(res.passesHashCheck, true);
+        });
+        it('downloads a file and fails hash check, wrong hash', async function(){
 
-            //TODO: assert file hash equal
+        });
+        it('downloads a file and fails hash check, hash left empty', async function(){
+
         });
     });
 });
