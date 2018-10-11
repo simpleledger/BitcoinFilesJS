@@ -17,7 +17,7 @@ Other tools using the Bitcoin Files Protocol include:
 ```<script src='https://unpkg.com/bitcoinfiles'></script>```
  
 
-# Example File Dowload
+# Example File Download
 ```javascript
 const bfp = require('bitcoinfiles').bfp;
 
