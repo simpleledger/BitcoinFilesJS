@@ -93,3 +93,25 @@ let fileId;
 // wait for upload to complete resolve... Done.
 
 ```
+
+# Get File Metadata
+
+```javascript
+
+const bfp = require('bitcoinfiles');
+
+let metadata;
+(async function(){
+    metadata = await bfp.bitdb.getFileMetadata("dc76c5bd116fd61713c5b454b393212e33a1b2a8c926dcc40261f955d59b8e90","qrg3fvfue463rc5genp2kyrj4mg6g2lpxst0y4wamw");
+    console.log(metadata);
+})
+
+// metadata : 
+// { filename: 'tes158',
+//        fileext: '.json',
+//        size: '017a',
+//        sha256: '018321383bf2672befe28629d1e159af812260268a8aa77bbd4ec27489d65b58',
+//        prev_sha256: '',
+//        ext_uri: '' }
+
+```
