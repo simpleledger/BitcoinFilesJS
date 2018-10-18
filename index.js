@@ -1,5 +1,5 @@
-const BITBOXCli = require('bitbox-cli/lib/bitbox-cli').default
-    , BITBOX = new BITBOXCli()
+const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
+    , BITBOX = new BITBOXSDK()
 
 let bfp = require('./lib/bfp');
 let utils = require('./lib/utils');
