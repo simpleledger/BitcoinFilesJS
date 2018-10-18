@@ -816,7 +816,7 @@ class BfpNetwork {
 
         while (true) {
             try {
-                var utxo = (await BfpNetwork.getUtxo(paymentAddress))[0];
+                var utxo = (await BfpNetwork.getUtxo(paymentAddress))[0][0];
                 if (utxo && utxo.satoshis >= fee) {
                     break;
                 }
