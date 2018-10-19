@@ -1,6 +1,8 @@
 const assert = require('assert');
 const bitcoinfiles = require('../index.js');
 const bfp = bitcoinfiles.bfp;
+const network = bitcoinfiles.network;
+
 describe('bitcoinfiles', function(){
     describe('file upload cost estimates', function(){
         it('estimates fee for multi-chunk outside of metadata chunk', function(){
@@ -44,6 +46,14 @@ describe('bitcoinfiles', function(){
         });
         it('downloads a file and fails hash check, hash left empty', async function(){
 
+        });
+    });
+    describe('BITBOX network responses', function(){
+        it('gets first utxo from an address', async function(){
+            let address = 'bitcoincash:qrqan3ky8wcnrpng7jrp7w9t9fjf8denpgd4kew06l';
+            let utxo = await network.getUtxo(address);
+            console.log(utxo);
+            assert.equal(utxo && utxo.satoshis >= 0, true);
         });
     });
 });
