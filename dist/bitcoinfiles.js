@@ -130,7 +130,7 @@ class Bfp {
                         fileSize: fileSize,
                         fileSha256Hex: hash,
                         prevFileSha256Hex: prevFileSha256Hex,
-                        fileUri: '',
+                        fileUri: fileExternalUri,
                         chunkData: chunks[nId]
                     };
                     let metaOpReturn = Bfp.buildMetadataOpReturn(configMetaOpReturn);
@@ -280,7 +280,7 @@ class Bfp {
         script.push(0x6a);
 
         // Lokad Id
-        let lokadId = Buffer.from(this.lokadIdHex, 'hex');
+        let lokadId = Buffer.from(Bfp.lokadIdHex, 'hex');
         script.push(utils.getPushDataOpcode(lokadId));
         lokadId.forEach((item) => script.push(item));
 
@@ -454,7 +454,7 @@ class Bfp {
 
         transactionBuilder.addInput(config.input_utxo.txid, config.input_utxo.vout);
 
-        let chunkTxFee = this.calculateDataChunkMinerFee(config.bfpChunkOpReturn.length);
+        let chunkTxFee = Bfp.calculateDataChunkMinerFee(config.bfpChunkOpReturn.length);
         let outputAmount = config.input_utxo.satoshis - chunkTxFee;
 
         // Chunk OpReturn
@@ -497,7 +497,7 @@ class Bfp {
         inputSatoshis += config.input_utxo.satoshis;
 
 
-        let metadataFee = this.calculateMetadataMinerFee(config.bfpMetadataOpReturn.length); //TODO: create method for calculating miner fee
+        let metadataFee = Bfp.calculateMetadataMinerFee(config.bfpMetadataOpReturn.length); //TODO: create method for calculating miner fee
         let output = inputSatoshis - metadataFee;
 
         // Metadata OpReturn
@@ -536,7 +536,7 @@ class Bfp {
         let last_chunk_size = fileSizeBytes % 220;
 
         // cost of final transaction's op_return w/o any chunkdata
-        let final_op_return_no_chunk = this.buildMetadataOpReturn(configMetadataOpReturn);
+        let final_op_return_no_chunk = Bfp.buildMetadataOpReturn(configMetadataOpReturn);
         byte_count += final_op_return_no_chunk.length;
 
         // cost of final transaction's input/outputs
@@ -546,7 +546,7 @@ class Bfp {
         // cost of chunk trasnsaction op_returns
         byte_count += (whole_chunks_count + 1) * 3;
 
-        if (!this.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size))
+        if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size))
         {
             // add fees for an extra chunk transaction input/output
             byte_count += 149 + 35;
@@ -629,7 +629,7 @@ class Bfp {
             throw new Error('Not an OP_RETURN');
         }
 
-        if (script[1] !== this.lokadIdHex) {
+        if (script[1] !== Bfp.lokadIdHex) {
             throw new Error('Not a BFP OP_RETURN');
         }
 
