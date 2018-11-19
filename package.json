@@ -1,6 +1,6 @@
 {
   "name": "bitcoinfiles",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "Upload and Download files to Bitcoin Cash blockchain",
   "main": "index.js",
   "files": [
@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/simpleledger/bitcoinfilesjs#readme",
   "dependencies": {
-    "bitbox-sdk": "^2.0.4"
+    "bitbox-sdk": "^2.2.2"
   },
   "devDependencies": {
     "browserify": "^16.2.2",
