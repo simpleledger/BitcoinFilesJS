@@ -114,7 +114,7 @@ class Bfp {
                 }
             };
 
-            let chunksTx = Bfp.buildChunkTx(configChunkTx);
+            let chunksTx = this.buildChunkTx(configChunkTx);
 
             if (nId === chunkCount - 1) {
                 let emptyOpReturn = Bfp.buildMetadataOpReturn(configEmptyMetaOpReturn);
@@ -146,7 +146,7 @@ class Bfp {
                         },
                         fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
                     };
-                    let metaTx = Bfp.buildMetadataTx(configMetaTx);
+                    let metaTx = this.buildMetadataTx(configMetaTx);
                     transactions.push(metaTx);
                 } else {
                     // finish with both chunk txn and then final empty metadata txn
@@ -165,7 +165,7 @@ class Bfp {
                         },
                         fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
                     };
-                    let metaTx = Bfp.buildMetadataTx(configMetaTx);
+                    let metaTx = this.buildMetadataTx(configMetaTx);
                     transactions.push(metaTx);
                 }
             } else { // not last transaction
