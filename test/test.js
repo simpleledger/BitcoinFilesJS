@@ -37,5 +37,20 @@ describe('bitcoinfiles', function(){
             let utxo = await network.getUtxo(address, false);
             assert.equal(utxo && utxo.satoshis >= 0, true);
         });
+        it("Build OP_RETURN Script", function(){
+            let configMetaOpReturn = {
+                msgType: 1,
+                chunkCount: 1,
+                fileName: "test",
+                fileExt: ".json",
+                fileSize: 100,
+                fileSha256Hex: "0011223344556677889900112233445566778899001122334455667788991111",
+                prevFileSha256Hex: null,
+                fileUri: null,
+                chunkData: new Buffer.from("0011", 'hex')
+            };
+            let metaOpReturn = bfp.buildMetadataOpReturn(configMetaOpReturn)
+            console.log(metaOpReturn);
+        });
     });
 });
