@@ -33,22 +33,22 @@ class Bfp {
 
     static get lokadIdHex() { return "42465000" }
 
-    async uploadFileHashOnly(fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+    async uploadHashOnlyObject(type, // file = 1,  folder = 3
+                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
                                 fundingAddress,             // string
                                 fundingWif,                 // hex string?
-                                fileDataArrayBuffer,        // ArrayBuffer
-                                fileName=null,              // string
-                                fileExt=null,               // string
-                                prevFileSha256Hex=null,     // hex string
-                                fileExternalUri=null,       // utf8 string
-                                fileReceiverAddress=null,   // string
+                                objectDataArrayBuffer,        // ArrayBuffer
+                                objectName=null,              // string
+                                objectExt=null,               // string
+                                prevObjectSha256Hex=null,     // hex string
+                                objectExternalUri=null,       // utf8 string
+                                objectReceiverAddress=null,   // string
                                 signProgressCallback=null, 
                                 signFinishedCallback=null, 
                                 uploadProgressCallback=null, 
                                 uploadFinishedCallback=null){
-
-        let fileSize = fileDataArrayBuffer.byteLength;
-        let hash = BITBOX.Crypto.sha256(new Buffer(fileDataArrayBuffer)).toString('hex');
+        let fileSize = objectDataArrayBuffer.byteLength;
+        let hash = BITBOX.Crypto.sha256(new Buffer(objectDataArrayBuffer)).toString('hex');
         
         // chunks
         let chunkCount = 0; //Math.floor(fileSize / 220);
@@ -56,14 +56,14 @@ class Bfp {
         // estimate cost
         // build empty meta data OpReturn
         let configEmptyMetaOpReturn = {
-            msgType: 1,
+            msgType: type,
             chunkCount: chunkCount,
-            fileName: fileName,
-            fileExt: fileExt,
+            fileName: objectName,
+            fileExt: objectExt,
             fileSize: fileSize,
             fileSha256Hex: hash,
-            prevFileSha256Hex: prevFileSha256Hex,
-            fileUri: fileExternalUri,
+            prevFileSha256Hex: prevObjectSha256Hex,
+            fileUri: objectExternalUri,
             chunkData: null
         };
 
@@ -84,7 +84,7 @@ class Bfp {
                 satoshis: satoshis,//chunksTx.outs[1].value,
                 wif: fundingWif
             },
-            fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
+            fileReceiverAddress: objectReceiverAddress != null ? objectReceiverAddress : fundingAddress
         };
         let metaTx = this.buildMetadataTx(configMetaTx);
         transactions.push(metaTx);
@@ -119,7 +119,67 @@ class Bfp {
         return bfTxId;
     }
 
-    async uploadFile(fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+    async uploadFolderHashOnly(fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+                                fundingAddress,             // string
+                                fundingWif,                 // hex string?
+                                folderDataArrayBuffer,        // ArrayBuffer
+                                folderName=null,              // string
+                                folderExt=null,               // string
+                                prevFolderSha256Hex=null,         // hex string
+                                folderExternalUri=null,       // utf8 string
+                                folderReceiverAddress=null,   // string
+                                signProgressCallback=null, 
+                                signFinishedCallback=null, 
+                                uploadProgressCallback=null, 
+                                uploadFinishedCallback=null){
+        return await this.uploadHashOnlyObject(3,
+                                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+                                                fundingAddress,             // string
+                                                fundingWif,                 // hex string?
+                                                folderDataArrayBuffer,      // ArrayBuffer
+                                                folderName=null,            // string
+                                                folderExt=null,             // string
+                                                prevFolderSha256Hex=null,   // hex string
+                                                folderExternalUri=null,     // utf8 string
+                                                folderReceiverAddress=null, // string
+                                                signProgressCallback=null, 
+                                                signFinishedCallback=null, 
+                                                uploadProgressCallback=null, 
+                                                uploadFinishedCallback=null
+        )
+    }
+
+    async uploadFileHashOnly(fundingUtxo,                   // object in form: { txid:'', satoshis:#, vout:# }
+                                fundingAddress,             // string
+                                fundingWif,                 // hex string?
+                                fileDataArrayBuffer,        // ArrayBuffer
+                                fileName=null,              // string
+                                fileExt=null,               // string
+                                prevFileSha256Hex=null,     // hex string
+                                fileExternalUri=null,       // utf8 string
+                                fileReceiverAddress=null,   // string
+                                signProgressCallback=null, 
+                                signFinishedCallback=null, 
+                                uploadProgressCallback=null, 
+                                uploadFinishedCallback=null){
+        return await this.uploadHashOnlyObject(1,
+                                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+                                                fundingAddress,             // string
+                                                fundingWif,                 // hex string?
+                                                fileDataArrayBuffer,        // ArrayBuffer
+                                                fileName=null,              // string
+                                                fileExt=null,               // string
+                                                prevFileSha256Hex=null,     // hex string
+                                                fileExternalUri=null,       // utf8 string
+                                                fileReceiverAddress=null,   // string
+                                                signProgressCallback=null, 
+                                                signFinishedCallback=null, 
+                                                uploadProgressCallback=null, 
+                                                uploadFinishedCallback=null
+        )
+    }
+
+    async uploadFile(fundingUtxo,                       // object in form: { txid:'', satoshis:#, vout:# }
                             fundingAddress,             // string
                             fundingWif,                 // hex string?
                             fileDataArrayBuffer,        // ArrayBuffer
@@ -806,10 +866,10 @@ module.exports = class BitbdProxy {
         let query = {
             "v": 3,
             "q": {
-              "find": { "out.h1": "42465000", "out.h2": "01" }
+              "find": { "tx.h": txid, "out.h1": "42465000", "out.h2": "01" }
             },
             "r": { "f": "[ .[] | { timestamp: (if .blk? then (.blk.t | strftime(\"%Y-%m-%d %H:%M\")) else null end), chunks: .out[0].h3, filename: .out[0].s4, fileext: .out[0].s5, size: .out[0].h6, sha256: .out[0].h7, prev_sha256: .out[0].h8, ext_uri: .out[0].s9, URI: \"bitcoinfile:\\(.tx.h)\" } ]" }
-          };
+        };
 
         // example response format:
         // { filename: 'tes158',
