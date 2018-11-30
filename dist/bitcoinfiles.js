@@ -137,15 +137,15 @@ class Bfp {
                                                 fundingAddress,             // string
                                                 fundingWif,                 // hex string?
                                                 folderDataArrayBuffer,      // ArrayBuffer
-                                                folderName=null,            // string
-                                                folderExt=null,             // string
-                                                prevFolderSha256Hex=null,   // hex string
-                                                folderExternalUri=null,     // utf8 string
-                                                folderReceiverAddress=null, // string
-                                                signProgressCallback=null, 
-                                                signFinishedCallback=null, 
-                                                uploadProgressCallback=null, 
-                                                uploadFinishedCallback=null
+                                                folderName,            // string
+                                                folderExt,             // string
+                                                prevFolderSha256Hex,   // hex string
+                                                folderExternalUri,     // utf8 string
+                                                folderReceiverAddress, // string
+                                                signProgressCallback, 
+                                                signFinishedCallback, 
+                                                uploadProgressCallback, 
+                                                uploadFinishedCallback
         )
     }
 
@@ -163,19 +163,19 @@ class Bfp {
                                 uploadProgressCallback=null, 
                                 uploadFinishedCallback=null){
         return await this.uploadHashOnlyObject(1,
-                                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                                fundingAddress,             // string
-                                                fundingWif,                 // hex string?
-                                                fileDataArrayBuffer,        // ArrayBuffer
-                                                fileName=null,              // string
-                                                fileExt=null,               // string
-                                                prevFileSha256Hex=null,     // hex string
-                                                fileExternalUri=null,       // utf8 string
-                                                fileReceiverAddress=null,   // string
-                                                signProgressCallback=null, 
-                                                signFinishedCallback=null, 
-                                                uploadProgressCallback=null, 
-                                                uploadFinishedCallback=null
+                                                fundingUtxo,          // object in form: { txid:'', satoshis:#, vout:# }
+                                                fundingAddress,       // string
+                                                fundingWif,           // hex string?
+                                                fileDataArrayBuffer,  // ArrayBuffer
+                                                fileName,             // string
+                                                fileExt,              // string
+                                                prevFileSha256Hex,    // hex string
+                                                fileExternalUri,      // utf8 string
+                                                fileReceiverAddress,  // string
+                                                signProgressCallback, 
+                                                signFinishedCallback, 
+                                                uploadProgressCallback, 
+                                                uploadFinishedCallback
         )
     }
 
