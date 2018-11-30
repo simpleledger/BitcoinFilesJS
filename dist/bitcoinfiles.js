@@ -995,6 +995,8 @@ class BfpNetwork {
         if(this.isMonitoringPayment || this.stopPayMonitor)
             return;
 
+        this.isMonitoringPayment = true;
+
         // must be a cash or legacy addr
         if(!this.BITBOX.Address.isCashAddress(paymentAddress) && !this.BITBOX.Address.isLegacyAddress(paymentAddress))
             throw new Error("Not an a valid address format, must be cashAddr or Legacy address format.");
@@ -1009,8 +1011,10 @@ class BfpNetwork {
                 console.log(ex);
             }
 
-            if(this.stopPayMonitor)
+            if(this.stopPayMonitor) {
+                this.isMonitoringPayment = false;
                 return;
+            }
 
             await sleep(2000);
         }
