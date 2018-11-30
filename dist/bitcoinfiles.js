@@ -1002,7 +1002,7 @@ class BfpNetwork {
         while (true) {
             try {
                 var utxo = await this.getUtxo(paymentAddress);
-                if (utxo && utxo.satoshis >= fee) {
+                if (utxo && utxo.satoshis >= fee && utxo.confirmations === 0) {
                     break;
                 }
             } catch (ex) {
