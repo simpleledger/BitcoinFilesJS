@@ -43,9 +43,12 @@ let fileBuffer = result.fileBuf;
 Below is a simple example.  For a more complete React.js [file upload example](https://github.com/simpleledger/SimpleToken.cash/blob/master/src/UploadDialog.js) visit [SimpleToken.cash website](https://simpletoken.cash)
 
 ```javascript
-const bfp = require('bitcoinfiles').bfp;
-const network = require('bitcoinfiles').network;
+const Bfp = require('bitcoinfiles').bfp;
+const Network = require('bitcoinfiles').network;
 const BITBOX = require('bitcoinfiles').bitbox;
+
+const bfp = new Bfp();
+const network = new Network();
 
 // 1 - get a file and file metadata somehow 
 const someFileBuffer = new Buffer.from('aabbccddeeff', 'hex');
@@ -66,7 +69,7 @@ let config = {
     fileUri: null,
     chunkData: null  // chunk not needed for cost estimate stage
 };
-let uploadCost = bfp.calculateFileUploadCost(fileSize, config);
+let uploadCost = Bfp.calculateFileUploadCost(fileSize, config);
 console.log(uploadCost);
 
 // 3 - create a funding transaction
@@ -75,9 +78,10 @@ let fundingWif = 'KzcuA9xnDRrb9cPh29N7EQbBhQQLMWtcrDwKbEMoahmwBNACNRfa'
 
 // 4 - Make sure address above is funded with the amount equal to the uploadCost
 let fundingUtxo;
+
 (async function(){
-    let txos = await network.getUtxoWithRetry(fundingAddress);
-    fundingUtxo = txos[txos.length-1]; // UTXOs are sorted small to large, so grab biggest one to be conservative.
+    let txo = await network.getUtxoWithRetry(fundingAddress);
+    
     console.log('got funding Utxo.')
 })();
 
