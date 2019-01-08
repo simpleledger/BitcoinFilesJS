@@ -19,7 +19,8 @@ Other tools using the Bitcoin Files Protocol include:
 
 # Example File Download
 ```javascript
-const bfp = require('bitcoinfiles').bfp;
+const Bfp = require('bitcoinfiles').bfp;
+const bfp = new Bfp();
 
 // 1 - download file using URI
 let result;
@@ -70,7 +71,7 @@ let config = {
     chunkData: null  // chunk not needed for cost estimate stage
 };
 let uploadCost = Bfp.calculateFileUploadCost(fileSize, config);
-console.log(uploadCost);
+console.log('upload cost: ', uploadCost);
 
 // 3 - create a funding transaction
 let fundingAddress = 'bitcoincash:qqgvrkm0xpmwqgyhfm65qxv70tjtwma6lgk07ffv9u'
@@ -80,7 +81,7 @@ let fundingWif = 'KzcuA9xnDRrb9cPh29N7EQbBhQQLMWtcrDwKbEMoahmwBNACNRfa'
 let fundingUtxo;
 
 (async function(){
-    let txo = await network.getUtxoWithRetry(fundingAddress);
+    let txo = await network.getLastUtxoWithRetry(fundingAddress);
     
     console.log('got funding Utxo.')
 })();
@@ -91,7 +92,7 @@ let fundingUtxo;
 let fileId;
 (async function(){
  fileId = await bfp.uploadFile(fundingUtxo, fundingAddress, fundingWif, someFileBuffer, fileName, fileExt);
- console.log(fileId);
+ console.log('fileId: ', fileId);
 })(); 
 
 // wait for upload to complete resolve... Done.
@@ -107,7 +108,7 @@ const bfp = require('bitcoinfiles');
 let metadata;
 (async function(){
     metadata = await bfp.bitdb.getFileMetadata("dc76c5bd116fd61713c5b454b393212e33a1b2a8c926dcc40261f955d59b8e90","qrg3fvfue463rc5genp2kyrj4mg6g2lpxst0y4wamw");
-    console.log(metadata);
+    console.log('metadata: ', metadata);
 })
 
 // metadata : 

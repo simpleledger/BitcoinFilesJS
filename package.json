@@ -1,6 +1,6 @@
 {
   "name": "bitcoinfiles",
-  "version": "0.3.8",
+  "version": "0.4.0",
   "description": "Upload and Download files to Bitcoin Cash blockchain",
   "main": "index.js",
   "files": [
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/simpleledger/bitcoinfilesjs.git"
+    "url": "git+https://github.com/simpleledgerinc/bitcoinfilesjs.git"
   },
   "keywords": [
     "BCH",
@@ -26,13 +26,13 @@
     "node",
     "browser"
   ],
-  "author": "James Cramer",
+  "author": "Simple Ledger, Inc.",
   "license": "MIT",
   "unpkg": "dist/bitcoinfiles.min.js",
   "bugs": {
-    "url": "https://github.com/simpleledger/bitcoinfilesjs/issues"
+    "url": "https://github.com/simpleledgerinc/bitcoinfilesjs/issues"
   },
-  "homepage": "https://github.com/simpleledger/bitcoinfilesjs#readme",
+  "homepage": "https://github.com/simpleledgerinc/bitcoinfilesjs#readme",
   "dependencies": {
     "bitbox-sdk": "^2.2.2"
   },

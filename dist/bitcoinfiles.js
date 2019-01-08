@@ -5,19 +5,18 @@ const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
 let bfp = require('./lib/bfp');
 let utils = require('./lib/utils');
 let network = require('./lib/network');
-let bitdb = require('./lib/bitdb');
 
 module.exports = {
     bfp: bfp,
     utils: utils, 
     network: network,
-    bitdb: bitdb,
     bitbox: BITBOX
 }
-},{"./lib/bfp":2,"./lib/bitdb":3,"./lib/network":4,"./lib/utils":5,"bitbox-sdk/lib/bitbox-sdk":96}],2:[function(require,module,exports){
+},{"./lib/bfp":2,"./lib/network":4,"./lib/utils":5,"bitbox-sdk/lib/bitbox-sdk":96}],2:[function(require,module,exports){
 (function (Buffer){
 let utils = require('./utils');
-let bitboxnetwork = require('./network');
+let Network = require('./network');
+let Bitdb = require('./bitdb');
 
 const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
     , BITBOX = new BITBOXSDK()
@@ -26,9 +25,10 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 class Bfp {
 
-    constructor(network = 'mainnet'){
+    constructor(network = 'mainnet') {
         this.networkstring = network;
-        this.network = new bitboxnetwork(network);
+        this.network = new Network(network);
+        this.bitdb = new Bitdb(network);
     }
 
     static get lokadIdHex() { return "42465000" }
@@ -103,7 +103,7 @@ class Bfp {
         if(uploadProgressCallback != null){
             uploadProgressCallback(0);
         }
-        console.log(transactions[0].toHex());
+        console.log('transaction: ', transactions[0].toHex());
         var bfTxId = await this.network.sendTxWithRetry(transactions[0].toHex());
 
         // progress
@@ -337,7 +337,7 @@ class Bfp {
             uploadProgressCallback(0);
         }
         for (let nId = 0; nId < transactions.length; nId++) {
-            console.log(transactions[nId].toHex());
+            console.log('transaction: ', transactions[nId].toHex());
             var bfTxId = await this.network.sendTxWithRetry(transactions[nId].toHex());
             // progress
             if(uploadProgressCallback != null){
@@ -361,8 +361,8 @@ class Bfp {
         let chunks = [];
         let size = 0;
 
-        let txid = bfpUri.replace('bitcoinfile:', '')
-        txid = txid.replace('bitcoinfiles:', '')
+        let txid = bfpUri.replace('bitcoinfile:', '');
+        txid = txid.replace('bitcoinfiles:', '');
 
         let txn = await this.network.getTransactionDetailsWithRetry(txid);
 
@@ -410,7 +410,7 @@ class Bfp {
         if(bfpMsg.sha256 != null){
             let fileSha256 = BITBOX.Crypto.sha256(fileBuf);
             let res = Buffer.compare(fileSha256, bfpMsg.sha256);
-            if(res == 0){
+            if(res === 0){
                 passesHashCheck = true;
             }
         }
@@ -502,7 +502,7 @@ class Bfp {
             chunkData.forEach((item) => script.push(item));
         }
 
-        // console.log(script);
+        //console.log('script: ', script);
         let encodedScript = utils.encodeScript(script);
 
         if (encodedScript.length > 223) {
@@ -850,18 +850,23 @@ class Bfp {
 
 module.exports = Bfp;
 }).call(this,require("buffer").Buffer)
-},{"./network":4,"./utils":5,"bitbox-sdk/lib/bitbox-sdk":96,"buffer":174}],3:[function(require,module,exports){
+},{"./bitdb":3,"./network":4,"./utils":5,"bitbox-sdk/lib/bitbox-sdk":96,"buffer":174}],3:[function(require,module,exports){
 (function (Buffer){
 const axios = require('axios');
 
-const bitDbUrl      = 'https://bitdb.network/q/';
+module.exports = class BfpBitdb {
 
-module.exports = class BitbdProxy {
+    constructor(network) {
+        this.bitDbUrl = network === 'mainnet' ? 'https://bitdb.bitcoin.com/q/' : 'https://tbitdb.bitcoin.com/q/';
+    }
 
-    static async getFileMetadata(txid, apiKey) {
+    async getFileMetadata(txid, apiKey=null) {
 
-        if(!apiKey)
-            throw new Error('Missing BitDB key');
+        txid = txid.replace('bitcoinfile:', '');
+        txid = txid.replace('bitcoinfiles:', '');
+
+        // if(!apiKey)
+        //     throw new Error('Missing BitDB key');
 
         let query = {
             "v": 3,
@@ -883,10 +888,11 @@ module.exports = class BitbdProxy {
         const data = Buffer.from(json_str).toString('base64');
         const response = (await axios({
             method: 'GET',
-            url: bitDbUrl + data,
-            headers: {
-                'key': apiKey,
-            },
+            url: this.bitDbUrl + data,
+            headers: null,
+            // {
+            //     'key': apiKey,
+            // },
             json: true,
         })).data;
     
@@ -906,7 +912,7 @@ module.exports = class BitbdProxy {
         if(list.length === 0){
             throw new Error('File not found');
         }
-        console.log(list[0]);
+        console.log('bitdb response: ', list[0]);
         return list[0];
     }
 }
@@ -928,11 +934,12 @@ class BfpNetwork {
         this.isMonitoringPayment = false;
     }
 
-    async getUtxoWithRetry(address, retries = 40) {
+    async getLastUtxoWithRetry(address, retries = 40) {
 		let result;
 		let count = 0;
 		while(result == undefined){
-			result = await this.getUtxo(address)
+            result = await this.getLastUtxo(address)
+            console.log(result);
 			count++;
 			if(count > retries)
 				throw new Error("BITBOX.Address.utxo endpoint experienced a problem");
@@ -955,13 +962,13 @@ class BfpNetwork {
         return result; 
     }
 
-    async getUtxo(address, log=true) {
+    async getLastUtxo(address, log=true) {
         // must be a cash or legacy addr
         if(!this.BITBOX.Address.isCashAddress(address) && !this.BITBOX.Address.isLegacyAddress(address))
             throw new Error("Not an a valid address format, must be cashAddr or Legacy address format.");
         let res = await this.BITBOX.Address.utxo(address);
         if(log)
-            console.log('getUtxo for ', address, ': ', res);
+            console.log('getLastUtxo for ', address, ': ', res);
         return res[0];
     }
 
@@ -970,7 +977,7 @@ class BfpNetwork {
         if(res === "64: too-long-mempool-chain")
             throw new Error("Mempool chain too long");
         if(log)
-            console.log(res);
+            console.log('sendTx() res: ', res);
         return res;
     }
 
@@ -1003,12 +1010,12 @@ class BfpNetwork {
 
         while (true) {
             try {
-                var utxo = await this.getUtxo(paymentAddress);
+                var utxo = await this.getLastUtxo(paymentAddress);
                 if (utxo && utxo.satoshis >= fee && utxo.confirmations === 0) {
                     break;
                 }
             } catch (ex) {
-                console.log(ex);
+                console.log('monitorForPayment() error: ', ex);
             }
 
             if(this.stopPayMonitor) {
