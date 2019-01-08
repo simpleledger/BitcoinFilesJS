@@ -19,8 +19,10 @@ Other tools using the Bitcoin Files Protocol include:
 
 # Example File Download
 ```javascript
+const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
+
 const Bfp = require('bitcoinfiles').bfp;
-const bfp = new Bfp();
+const bfp = new Bfp(BITBOXSDK);
 
 // 1 - download file using URI
 let result;
@@ -44,12 +46,14 @@ let fileBuffer = result.fileBuf;
 Below is a simple example.  For a more complete React.js [file upload example](https://github.com/simpleledger/SimpleToken.cash/blob/master/src/UploadDialog.js) visit [SimpleToken.cash website](https://simpletoken.cash)
 
 ```javascript
+const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
+    , BITBOX = new BITBOXSDK()
+
 const Bfp = require('bitcoinfiles').bfp;
 const Network = require('bitcoinfiles').network;
 const BITBOX = require('bitcoinfiles').bitbox;
 
-const bfp = new Bfp();
-const network = new Network();
+const bfp = new Bfp(BITBOXSDK);
 
 // 1 - get a file and file metadata somehow 
 const someFileBuffer = new Buffer.from('aabbccddeeff', 'hex');
@@ -81,7 +85,7 @@ let fundingWif = 'KzcuA9xnDRrb9cPh29N7EQbBhQQLMWtcrDwKbEMoahmwBNACNRfa'
 let fundingUtxo;
 
 (async function(){
-    let txo = await network.getLastUtxoWithRetry(fundingAddress);
+    let txo = await bfp.network.getLastUtxoWithRetry(fundingAddress);
     
     console.log('got funding Utxo.')
 })();
@@ -99,15 +103,15 @@ let fileId;
 
 ```
 
-# Get File Metadata
+# Get File Metadata via BitDb
 
 ```javascript
 
-const bfp = require('bitcoinfiles');
+const bitdb = require('bitcoinfiles').bitdb;
 
 let metadata;
 (async function(){
-    metadata = await bfp.bitdb.getFileMetadata("dc76c5bd116fd61713c5b454b393212e33a1b2a8c926dcc40261f955d59b8e90","qrg3fvfue463rc5genp2kyrj4mg6g2lpxst0y4wamw");
+    metadata = await bitdb.getFileMetadata("dc76c5bd116fd61713c5b454b393212e33a1b2a8c926dcc40261f955d59b8e90","qrg3fvfue463rc5genp2kyrj4mg6g2lpxst0y4wamw");
     console.log('metadata: ', metadata);
 })
 

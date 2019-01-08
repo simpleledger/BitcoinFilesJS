@@ -13,7 +13,7 @@ describe('bitcoinfiles', function(){
             this.timeout(15000);
             
             // download a file check result
-            let f = new Bfp();
+            let f = new Bfp(BITBOXSDK, 'mainnet');
             let res1 = await f.downloadFile(fileId);
             let res2 = await f.downloadFile('bitcoinfile:' + fileId);
             assert.equal(res1.fileBuf.length, 15);
@@ -33,7 +33,7 @@ describe('bitcoinfiles', function(){
             let fileId = '1616ff1c1e21e8824151d9a114949cdebe6a92619bdce68f8936fd117dc11051';
             this.timeout(15000);
             // download a file
-            let f = new Bfp('testnet');
+            let f = new Bfp(BITBOXSDK, 'testnet');
             let res1 = await f.downloadFile(fileId);
             let res2 = await f.downloadFile('bitcoinfile:' + fileId);
             assert.equal(res1.fileBuf.length, 15);
@@ -52,13 +52,13 @@ describe('bitcoinfiles', function(){
     describe('BITBOX network responses', function(){
         it('gets first mainnet utxo from an address', async function(){
             let address = 'bitcoincash:qrqan3ky8wcnrpng7jrp7w9t9fjf8denpgd4kew06l';
-            let network = new Network('mainnet');
+            let network = new Network(BITBOXSDK, 'mainnet');
             let utxo = await network.getLastUtxoWithRetry(address);
             assert.equal(utxo && utxo.satoshis >= 0, true);
         });
         it('gets first testnet3 utxo from an address', async function(){
             let address = 'bchtest:qp94fxw6ugxgytcqugcjcsncd7cth9ltyy7apq7z8t';
-            let network = new Network('testnet');
+            let network = new Network(BITBOXSDK, 'testnet');
             let utxo = await network.getLastUtxoWithRetry(address);
             assert.equal(utxo && utxo.satoshis >= 0, true);
         });
