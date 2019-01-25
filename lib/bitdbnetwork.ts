@@ -1,9 +1,10 @@
 const axios = require('axios');
 
-module.exports = class BfpBitdb {
+export class BitdbNetwork {
+    bitDbUrl: string;
 
-    constructor(network) {
-        this.bitDbUrl = network === 'mainnet' ? 'https://bitdb.bitcoin.com/q/' : 'https://tbitdb.bitcoin.com/q/';
+    constructor(network='https://bitdb.bch.sx/q/') {
+        this.bitDbUrl = network;
     }
 
     async getFileMetadata(txid, apiKey=null) {

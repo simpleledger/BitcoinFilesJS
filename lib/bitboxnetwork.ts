@@ -1,12 +1,13 @@
+import BITBOX from '../node_modules/bitbox-sdk/typings/bitbox-sdk';
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-class BfpNetwork {
-    constructor(BitboxSdk, network = 'mainnet') {
-        if(network === 'mainnet')
-            this.BITBOX = new BitboxSdk({ restURL: 'https://rest.bitcoin.com/v1/' })
-        else
-            this.BITBOX = new BitboxSdk({ restURL: 'https://trest.bitcoin.com/v1/' })
-
+export class BitboxNetwork {
+    BITBOX: BITBOX;
+    stopPayMonitor: boolean;
+    isMonitoringPayment: boolean;
+    constructor(BITBOX) {
+        this.BITBOX = BITBOX
         this.stopPayMonitor = false;
         this.isMonitoringPayment = false;
     }
@@ -107,5 +108,3 @@ class BfpNetwork {
         onPaymentCB(utxo);
     }
 }
-
-module.exports = BfpNetwork;

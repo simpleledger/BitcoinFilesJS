@@ -1,15 +1,17 @@
-let utils = require('./utils');
-let Network = require('./network');
-let Bitdb = require('./bitdb');
+import BITBOX from '../node_modules/bitbox-sdk/typings/bitbox-sdk';
+import { BitboxNetwork } from "./bitboxnetwork";
+import { Utils } from "./utils";
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-class Bfp {
-    constructor(BitboxSdk, network = 'mainnet') {
+export class Bfp {
+    networkstring: string;
+    network: BitboxNetwork;
+    BITBOX: BITBOX;
+    constructor(BITBOX, network='mainnet') {
         this.networkstring = network;
-        this.network = new Network(BitboxSdk, network);
-        this.bitdb = new Bitdb(network);
-        this.BITBOX = new BitboxSdk();
+        this.network = new BitboxNetwork(BITBOX);
+        this.BITBOX = BITBOX;
     }
 
     static get lokadIdHex() { return "42465000" }
@@ -379,7 +381,7 @@ class Bfp {
 
         // reverse order of chunks
         chunks = chunks.reverse()
-        let fileBuf = new Buffer.alloc(size);
+        let fileBuf = Buffer.alloc(size);
         let index = 0;
         chunks.forEach(chunk => {
             chunk.copy(fileBuf, index)
@@ -408,16 +410,16 @@ class Bfp {
 
         // Lokad Id
         let lokadId = Buffer.from(Bfp.lokadIdHex, 'hex');
-        script.push(utils.getPushDataOpcode(lokadId));
+        script.push(Utils.getPushDataOpcode(lokadId));
         lokadId.forEach((item) => script.push(item));
 
         // Message Type
-        script.push(utils.getPushDataOpcode([config.msgType]));
+        script.push(Utils.getPushDataOpcode([config.msgType]));
         script.push(config.msgType);
 
         // Chunk Count
-        let chunkCount = utils.int2FixedBuffer(config.chunkCount, 1)
-        script.push(utils.getPushDataOpcode(chunkCount))
+        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 1)
+        script.push(Utils.getPushDataOpcode(chunkCount))
         chunkCount.forEach((item) => script.push(item))
 
         // File Name
@@ -425,7 +427,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileName = Buffer.from(config.fileName, 'utf8')
-            script.push(utils.getPushDataOpcode(fileName));
+            script.push(Utils.getPushDataOpcode(fileName));
             fileName.forEach((item) => script.push(item));
         }
 
@@ -434,12 +436,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileExt = Buffer.from(config.fileExt, 'utf8');
-            script.push(utils.getPushDataOpcode(fileExt));
+            script.push(Utils.getPushDataOpcode(fileExt));
             fileExt.forEach((item) => script.push(item));
         }
 
-        let fileSize = utils.int2FixedBuffer(config.fileSize, 2)
-        script.push(utils.getPushDataOpcode(fileSize))
+        let fileSize = Utils.int2FixedBuffer(config.fileSize, 2)
+        script.push(Utils.getPushDataOpcode(fileSize))
         fileSize.forEach((item) => script.push(item))
 
         // File SHA256
@@ -448,7 +450,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.fileSha256Hex.length === 64 && re.test(config.fileSha256Hex)) {
             let fileSha256Buf = Buffer.from(config.fileSha256Hex, 'hex');
-            script.push(utils.getPushDataOpcode(fileSha256Buf));
+            script.push(Utils.getPushDataOpcode(fileSha256Buf));
             fileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("File hash must be provided as a 64 character hex string");
@@ -459,7 +461,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.prevFileSha256Hex.length === 64 && re.test(config.prevFileSha256Hex)) {
             let prevFileSha256Buf = Buffer.from(config.prevFileSha256Hex, 'hex');
-            script.push(utils.getPushDataOpcode(prevFileSha256Buf));
+            script.push(Utils.getPushDataOpcode(prevFileSha256Buf));
             prevFileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("Previous File hash must be provided as a 64 character hex string")
@@ -470,7 +472,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileUri = Buffer.from(config.fileUri, 'utf8');
-            script.push(utils.getPushDataOpcode(fileUri));
+            script.push(Utils.getPushDataOpcode(fileUri));
             fileUri.forEach((item) => script.push(item));
         }
 
@@ -479,12 +481,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkData = Buffer.from(config.chunkData);
-            script.push(utils.getPushDataOpcode(chunkData));
+            script.push(Utils.getPushDataOpcode(chunkData));
             chunkData.forEach((item) => script.push(item));
         }
 
         //console.log('script: ', script);
-        let encodedScript = utils.encodeScript(script);
+        let encodedScript = Utils.encodeScript(script);
 
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.")
@@ -504,11 +506,11 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkDataBuf = Buffer.from(chunkData);
-            script.push(utils.getPushDataOpcode(chunkDataBuf));
+            script.push(Utils.getPushDataOpcode(chunkDataBuf));
             chunkDataBuf.forEach((item) => script.push(item));
         }
 
-        let encodedScript = utils.encodeScript(script);
+        let encodedScript = Utils.encodeScript(script);
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.");
         }
@@ -828,5 +830,3 @@ class Bfp {
         return bfpData;
     }
 }
-
-module.exports = Bfp;

@@ -1,4 +1,4 @@
-class BfpUtils {
+export class Utils {
 
     static getPushDataOpcode(data) {
         let length = data.length
@@ -43,5 +43,3 @@ class BfpUtils {
         return buffer
     }
 }
-
-module.exports = BfpUtils
