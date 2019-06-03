@@ -1,5 +1,4 @@
-const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
-    , BITBOX = new BITBOXSDK();
+const BITBOXSDK = require('bitbox-sdk')
 
 const assert = require('assert');
 const bitcoinfiles = require('../index.js');
@@ -13,7 +12,8 @@ describe('bitcoinfiles', function(){
             this.timeout(15000);
             
             // download a file check result
-            let f = new Bfp();
+            let bitbox = new BITBOXSDK.BITBOX();
+            let f = new Bfp(bitbox);
             let res1 = await f.downloadFile(fileId);
             let res2 = await f.downloadFile('bitcoinfile:' + fileId);
             assert.equal(res1.fileBuf.length, 15);
@@ -22,7 +22,7 @@ describe('bitcoinfiles', function(){
             assert.equal(res2.passesHashCheck, true);
 
             // cross check bitdb sha256 from metadata query
-            let fileSha256 = BITBOX.Crypto.sha256(res1.fileBuf);
+            let fileSha256 = bitbox.Crypto.sha256(res1.fileBuf);
             let m1 = await f.bitdb.getFileMetadata(fileId);
             let m2 = await f.bitdb.getFileMetadata('bitcoinfile:' + fileId);
             assert.equal(m1.passesHashCheck, m2.passesHashCheck);
@@ -33,7 +33,8 @@ describe('bitcoinfiles', function(){
             let fileId = '1616ff1c1e21e8824151d9a114949cdebe6a92619bdce68f8936fd117dc11051';
             this.timeout(15000);
             // download a file
-            let f = new Bfp('testnet');
+            let bitbox = new BITBOXSDK.BITBOX({ restURL: 'https://trest.bitcoin.com/v2/' });
+            let f = new Bfp(bitbox, 'testnet');
             let res1 = await f.downloadFile(fileId);
             let res2 = await f.downloadFile('bitcoinfile:' + fileId);
             assert.equal(res1.fileBuf.length, 15);
@@ -41,7 +42,7 @@ describe('bitcoinfiles', function(){
             assert.equal(res2.fileBuf.length, 15);
             assert.equal(res2.passesHashCheck, true);
 
-            let fileSha256 = BITBOX.Crypto.sha256(res1.fileBuf);
+            let fileSha256 = bitbox.Crypto.sha256(res1.fileBuf);
             let m1 = await f.bitdb.getFileMetadata(fileId);
             let m2 = await f.bitdb.getFileMetadata('bitcoinfile:' + fileId);
             assert.equal(m1.passesHashCheck, m2.passesHashCheck);
@@ -52,13 +53,16 @@ describe('bitcoinfiles', function(){
     describe('BITBOX network responses', function(){
         it('gets first mainnet utxo from an address', async function(){
             let address = 'bitcoincash:qrqan3ky8wcnrpng7jrp7w9t9fjf8denpgd4kew06l';
-            let network = new Network('mainnet');
+            let bitbox = new BITBOXSDK.BITBOX();
+            let network = new Network(bitbox);
             let utxo = await network.getLastUtxoWithRetry(address);
             assert.equal(utxo && utxo.satoshis >= 0, true);
         });
         it('gets first testnet3 utxo from an address', async function(){
             let address = 'bchtest:qp94fxw6ugxgytcqugcjcsncd7cth9ltyy7apq7z8t';
-            let network = new Network('testnet');
+            let bitbox = new BITBOXSDK.BITBOX({ restURL: 'https://trest.bitcoin.com/v2/' });
+            let network = new Network(bitbox);
+            console.log("Try to get:",address)
             let utxo = await network.getLastUtxoWithRetry(address);
             assert.equal(utxo && utxo.satoshis >= 0, true);
         });
