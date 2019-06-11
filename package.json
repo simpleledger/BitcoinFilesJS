@@ -1,6 +1,6 @@
 {
   "name": "bitcoinfiles",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Upload and Download files to Bitcoin Cash blockchain",
   "main": "index.js",
   "files": [
