@@ -1,6 +1,6 @@
-class BfpUtils {
+export class BfpUtils {
 
-    static getPushDataOpcode(data) {
+    static getPushDataOpcode(data: Buffer|number[]) {
         let length = data.length
 
         if (length === 0)
@@ -13,14 +13,14 @@ class BfpUtils {
             throw Error("Pushdata too large")
     }
 
-    static int2FixedBuffer(amount, size) {
+    static int2FixedBuffer(amount: number, size: number) {
         let hex = amount.toString(16);
         hex = hex.padStart(size * 2, '0');
         if (hex.length % 2) hex = '0' + hex;
         return Buffer.from(hex, 'hex');
     }
 
-    static encodeScript(script) {
+    static encodeScript(script: number[]) {
         const bufferSize = script.reduce((acc, cur) => {
             if (Array.isArray(cur)) return acc + cur.length
             else return acc + 1
@@ -43,5 +43,3 @@ class BfpUtils {
         return buffer
     }
 }
-
-module.exports = BfpUtils

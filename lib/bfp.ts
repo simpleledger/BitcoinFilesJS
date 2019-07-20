@@ -1,42 +1,87 @@
-let utils = require('./utils');
-let Network = require('./network');
-let Bitdb = require('./bitdb');
+import { BfpUtils } from './utils';
+import { BITBOX, TransactionBuilder } from 'bitbox-sdk';
+import { BfpNetwork } from './network';
+import { BfpBitdb} from './bitdb';
+import { Client } from 'grpc-bchrpc-web';
 
 // const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
 //     , BITBOX = new BITBOXSDK()
 
-let bchrpc = require('grpc-bchrpc-web');
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+interface utxo {
+    txid: string;
+    vout: number;
+    amount?: number;
+    satoshis: number;
+    height?: number;
+    confirmations?: number;
+    wif?: string;
+    address?: string;
+}
+
+interface FileMetadata {
+    msgType: number;
+    chunkCount: number;
+    fileName?: string;
+    fileExt?: string;
+    fileSize: number;
+    fileSha256Hex?: string;
+    prevFileSha256Hex?: string;
+    fileUri?: string;
+    chunkData?: Buffer;
+}
+
+interface FundingTxnConfig {
+    outputAddress: string;
+    fundingAmountSatoshis: number;
+    input_utxos: utxo[];
+}
+
+interface MetadataTxnConfig {
+    bfpMetadataOpReturn: Buffer;
+    input_utxo: utxo
+    fileReceiverAddress: string;
+}
+
+interface DataChunkTxnConfig {
+    bfpChunkOpReturn: Buffer;
+    input_utxo: utxo
+}
 
 class Bfp {
-    constructor(BITBOX, network = 'mainnet', grpcUrl=null) {
+    BITBOX: BITBOX;
+    networkstring: string;
+    network: BfpNetwork;
+    bitdb: any;
+    client: Client;
+    constructor(BITBOX: BITBOX, network = 'mainnet', grpcUrl?: string) {
         this.BITBOX = BITBOX;
         this.networkstring = network;
-        this.network = new Network(this.BITBOX, grpcUrl);
-        this.bitdb = new Bitdb(network);
+        this.network = new BfpNetwork(this.BITBOX, grpcUrl);
+        this.bitdb = new BfpBitdb(network);
         if(grpcUrl)
-            this.client = new bchrpc.Client(grpcUrl);
+            this.client = new Client(grpcUrl);
         else
-            this.client = new bchrpc.Client();
+            this.client = new Client();
     }
 
     static get lokadIdHex() { return "42465000" }
 
-    async uploadHashOnlyObject(type, // file = 1,  folder = 3
-                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress,             // string
-                                fundingWif,                 // hex string?
-                                objectDataArrayBuffer,        // ArrayBuffer
-                                objectName=null,              // string
-                                objectExt=null,               // string
-                                prevObjectSha256Hex=null,     // hex string
-                                objectExternalUri=null,       // utf8 string
-                                objectReceiverAddress=null,   // string
-                                signProgressCallback=null, 
-                                signFinishedCallback=null, 
-                                uploadProgressCallback=null, 
-                                uploadFinishedCallback=null){
+    async uploadHashOnlyObject(type: number, // file = 1,  folder = 3
+                                fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
+                                fundingAddress: string,             // string
+                                fundingWif: string,                 // hex string?
+                                objectDataArrayBuffer: Buffer,        // ArrayBuffer
+                                objectName?: string,              // string
+                                objectExt?: string,               // string
+                                prevObjectSha256Hex?: string,     // hex string
+                                objectExternalUri?: string,       // utf8 string
+                                objectReceiverAddress?: string,   // string
+                                signProgressCallback?: Function, 
+                                signFinishedCallback?: Function, 
+                                uploadProgressCallback?: Function, 
+                                uploadFinishedCallback?: Function){
         let fileSize = objectDataArrayBuffer.byteLength;
         let hash = this.BITBOX.Crypto.sha256(new Buffer(objectDataArrayBuffer)).toString('hex');
         
@@ -53,8 +98,7 @@ class Bfp {
             fileSize: fileSize,
             fileSha256Hex: hash,
             prevFileSha256Hex: prevObjectSha256Hex,
-            fileUri: objectExternalUri,
-            chunkData: null
+            fileUri: objectExternalUri
         };
 
         //* ** building transaction
@@ -109,19 +153,19 @@ class Bfp {
         return bfTxId;
     }
 
-    async uploadFolderHashOnly(fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress,             // string
-                                fundingWif,                 // hex string?
-                                folderDataArrayBuffer,        // ArrayBuffer
-                                folderName=null,              // string
-                                folderExt=null,               // string
-                                prevFolderSha256Hex=null,         // hex string
-                                folderExternalUri=null,       // utf8 string
-                                folderReceiverAddress=null,   // string
-                                signProgressCallback=null, 
-                                signFinishedCallback=null, 
-                                uploadProgressCallback=null, 
-                                uploadFinishedCallback=null){
+    async uploadFolderHashOnly(fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
+                                fundingAddress: string,             // string
+                                fundingWif: string,                 // hex string?
+                                folderDataArrayBuffer: Buffer,        // ArrayBuffer
+                                folderName?: string,              // string
+                                folderExt?: string,               // string
+                                prevFolderSha256Hex?: string,         // hex string
+                                folderExternalUri?: string,       // utf8 string
+                                folderReceiverAddress?: string,   // string
+                                signProgressCallback?: Function, 
+                                signFinishedCallback?: Function, 
+                                uploadProgressCallback?: Function, 
+                                uploadFinishedCallback?: Function){
         return await this.uploadHashOnlyObject(3,
                                                 fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
                                                 fundingAddress,             // string
@@ -139,19 +183,19 @@ class Bfp {
         )
     }
 
-    async uploadFileHashOnly(fundingUtxo,                   // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress,             // string
-                                fundingWif,                 // hex string?
-                                fileDataArrayBuffer,        // ArrayBuffer
-                                fileName=null,              // string
-                                fileExt=null,               // string
-                                prevFileSha256Hex=null,     // hex string
-                                fileExternalUri=null,       // utf8 string
-                                fileReceiverAddress=null,   // string
-                                signProgressCallback=null, 
-                                signFinishedCallback=null, 
-                                uploadProgressCallback=null, 
-                                uploadFinishedCallback=null){
+    async uploadFileHashOnly(fundingUtxo: utxo,                   // object in form: { txid:'', satoshis:#, vout:# }
+                                fundingAddress: string,             // string
+                                fundingWif: string,                 // hex string?
+                                fileDataArrayBuffer: Buffer,        // ArrayBuffer
+                                fileName?: string,              // string
+                                fileExt?: string,               // string
+                                prevFileSha256Hex?: string,     // hex string
+                                fileExternalUri?: string,       // utf8 string
+                                fileReceiverAddress?: string,   // string
+                                signProgressCallback?: Function, 
+                                signFinishedCallback?: Function, 
+                                uploadProgressCallback?: Function, 
+                                uploadFinishedCallback?: Function){
         return await this.uploadHashOnlyObject(1,
                                                 fundingUtxo,          // object in form: { txid:'', satoshis:#, vout:# }
                                                 fundingAddress,       // string
@@ -169,19 +213,19 @@ class Bfp {
         )
     }
 
-    async uploadFile(fundingUtxo,                       // object in form: { txid:'', satoshis:#, vout:# }
-                            fundingAddress,             // string
-                            fundingWif,                 // hex string?
-                            fileDataArrayBuffer,        // ArrayBuffer
-                            fileName=null,              // string
-                            fileExt=null,               // string
-                            prevFileSha256Hex=null,     // hex string
-                            fileExternalUri=null,       // utf8 string
-                            fileReceiverAddress=null,   // string
-                            signProgressCallback=null, 
-                            signFinishedCallback=null, 
-                            uploadProgressCallback=null, 
-                            uploadFinishedCallback=null, 
+    async uploadFile(fundingUtxo: utxo,                       // object in form: { txid:'', satoshis:#, vout:# }
+                            fundingAddress: string,             // string
+                            fundingWif: string,                 // hex string?
+                            fileDataArrayBuffer: Buffer,        // ArrayBuffer
+                            fileName?: string,              // string
+                            fileExt?: string,               // string
+                            prevFileSha256Hex?: string,     // hex string
+                            fileExternalUri?: string,       // utf8 string
+                            fileReceiverAddress?: string,   // string
+                            signProgressCallback?: Function, 
+                            signFinishedCallback?: Function, 
+                            uploadProgressCallback?: Function, 
+                            uploadFinishedCallback?: Function, 
                             delay_ms=500) {
 
         let fileSize = fileDataArrayBuffer.byteLength;
@@ -203,7 +247,7 @@ class Bfp {
 
         // estimate cost
         // build empty meta data OpReturn
-        let configEmptyMetaOpReturn = {
+        let configEmptyMetaOpReturn: FileMetadata = {
             msgType: 1,
             chunkCount: chunkCount,
             fileName: fileName,
@@ -211,8 +255,7 @@ class Bfp {
             fileSize: fileSize,
             fileSha256Hex: hash,
             prevFileSha256Hex: prevFileSha256Hex,
-            fileUri: fileExternalUri,
-            chunkData: null
+            fileUri: fileExternalUri
         };
 
         //* ** building transaction
@@ -239,9 +282,9 @@ class Bfp {
             }
 
             // build chunk data transaction
-            let configChunkTx = {
+            let configChunkTx: DataChunkTxnConfig = {
                 bfpChunkOpReturn: chunkOpReturn,
-                input_utxo: {
+                input_utxo: <utxo>{
                     address: fundingAddress,
                     txid: txid,
                     vout: vout,
@@ -347,7 +390,7 @@ class Bfp {
         return bfTxId;
     }
 
-    async downloadFile(bfpUri, progressCallback=null) {
+    async downloadFile(bfpUri: string, progressCallback?: Function) {
         let chunks = [];
         let size = 0;
 
@@ -356,15 +399,15 @@ class Bfp {
 
 
         let tx = await this.client.getTransaction(txid, true);
-        let prevHash = Buffer.from(tx.getTransaction().getInputsList()[0].getOutpoint().getHash_asU8()).toString('hex');
-        let metadata_opreturn_hex = Buffer.from(tx.getTransaction().getOutputsList()[0].getPubkeyScript_asU8()).toString('hex')
-        let bfpMsg = this.parsebfpDataOpReturn(metadata_opreturn_hex);
+        let prevHash = Buffer.from(tx.getTransaction()!.getInputsList()[0].getOutpoint()!.getHash_asU8()).toString('hex');
+        let metadata_opreturn_hex = Buffer.from(tx.getTransaction()!.getOutputsList()[0].getPubkeyScript_asU8()).toString('hex')
+        let bfpMsg = <any>this.parsebfpDataOpReturn(metadata_opreturn_hex);
 
         let downloadCount = bfpMsg.chunk_count;
         if(bfpMsg.chunk_count > 0 && bfpMsg.chunk != null) {
             downloadCount = bfpMsg.chunk_count - 1;
             chunks.push(bfpMsg.chunk)
-            size += bfpMsg.chunk.length;
+            size += <number>bfpMsg.chunk.length;
         }
 
 
@@ -373,22 +416,22 @@ class Bfp {
 
             // download prev txn
             let tx = await this.client.getTransaction(prevHash);
-            prevHash = Buffer.from(tx.getTransaction().getInputsList()[0].getOutpoint().getHash_asU8()).toString('hex');
-            let op_return_hex = Buffer.from(tx.getTransaction().getOutputsList()[0].getPubkeyScript_asU8()).toString('hex');
+            prevHash = Buffer.from(tx.getTransaction()!.getInputsList()[0].getOutpoint()!.getHash_asU8()).toString('hex');
+            let op_return_hex = Buffer.from(tx.getTransaction()!.getOutputsList()[0].getPubkeyScript_asU8()).toString('hex');
 
             // parse vout 0 for data, push onto chunks array
-            let bfpMsg = this.parsebfpDataOpReturn(op_return_hex);
+            let bfpMsg = <any>this.parsebfpDataOpReturn(op_return_hex);
             chunks.push(bfpMsg.chunk);
-            size += bfpMsg.chunk.length;
+            size += <number>bfpMsg.chunk.length;
 
-            if(progressCallback != null) {
+            if(progressCallback) {
                 progressCallback(index/(downloadCount-1));
             }
         }
 
         // reverse order of chunks
         chunks = chunks.reverse()
-        let fileBuf = new Buffer.alloc(size);
+        let fileBuf = Buffer.alloc(size);
         let index = 0;
         chunks.forEach(chunk => {
             chunk.copy(fileBuf, index)
@@ -408,25 +451,25 @@ class Bfp {
         return { passesHashCheck, fileBuf };
     }
 
-    static buildMetadataOpReturn(config) {
+    static buildMetadataOpReturn(config: FileMetadata) {
 
-        let script = [];
+        let script:number[] = [];
 
         // OP Return Prefix
         script.push(0x6a);
 
         // Lokad Id
         let lokadId = Buffer.from(Bfp.lokadIdHex, 'hex');
-        script.push(utils.getPushDataOpcode(lokadId));
+        script.concat(BfpUtils.getPushDataOpcode(lokadId));
         lokadId.forEach((item) => script.push(item));
 
         // Message Type
-        script.push(utils.getPushDataOpcode([config.msgType]));
+        script.concat(BfpUtils.getPushDataOpcode([config.msgType]));
         script.push(config.msgType);
 
         // Chunk Count
-        let chunkCount = utils.int2FixedBuffer(config.chunkCount, 1)
-        script.push(utils.getPushDataOpcode(chunkCount))
+        let chunkCount = BfpUtils.int2FixedBuffer(config.chunkCount, 1)
+        script.concat(BfpUtils.getPushDataOpcode(chunkCount))
         chunkCount.forEach((item) => script.push(item))
 
         // File Name
@@ -434,7 +477,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileName = Buffer.from(config.fileName, 'utf8')
-            script.push(utils.getPushDataOpcode(fileName));
+            script.concat(BfpUtils.getPushDataOpcode(fileName));
             fileName.forEach((item) => script.push(item));
         }
 
@@ -443,12 +486,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileExt = Buffer.from(config.fileExt, 'utf8');
-            script.push(utils.getPushDataOpcode(fileExt));
+            script.concat(BfpUtils.getPushDataOpcode(fileExt));
             fileExt.forEach((item) => script.push(item));
         }
 
-        let fileSize = utils.int2FixedBuffer(config.fileSize, 2)
-        script.push(utils.getPushDataOpcode(fileSize))
+        let fileSize = BfpUtils.int2FixedBuffer(config.fileSize, 2)
+        script.concat(BfpUtils.getPushDataOpcode(fileSize))
         fileSize.forEach((item) => script.push(item))
 
         // File SHA256
@@ -457,7 +500,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.fileSha256Hex.length === 64 && re.test(config.fileSha256Hex)) {
             let fileSha256Buf = Buffer.from(config.fileSha256Hex, 'hex');
-            script.push(utils.getPushDataOpcode(fileSha256Buf));
+            script.concat(BfpUtils.getPushDataOpcode(fileSha256Buf));
             fileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("File hash must be provided as a 64 character hex string");
@@ -468,7 +511,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.prevFileSha256Hex.length === 64 && re.test(config.prevFileSha256Hex)) {
             let prevFileSha256Buf = Buffer.from(config.prevFileSha256Hex, 'hex');
-            script.push(utils.getPushDataOpcode(prevFileSha256Buf));
+            script.concat(BfpUtils.getPushDataOpcode(prevFileSha256Buf));
             prevFileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("Previous File hash must be provided as a 64 character hex string")
@@ -479,7 +522,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileUri = Buffer.from(config.fileUri, 'utf8');
-            script.push(utils.getPushDataOpcode(fileUri));
+            script.concat(BfpUtils.getPushDataOpcode(fileUri));
             fileUri.forEach((item) => script.push(item));
         }
 
@@ -488,12 +531,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkData = Buffer.from(config.chunkData);
-            script.push(utils.getPushDataOpcode(chunkData));
+            script.concat(BfpUtils.getPushDataOpcode(chunkData));
             chunkData.forEach((item) => script.push(item));
         }
 
         //console.log('script: ', script);
-        let encodedScript = utils.encodeScript(script);
+        let encodedScript = BfpUtils.encodeScript(script);
 
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.")
@@ -502,8 +545,8 @@ class Bfp {
         return encodedScript;
     }
 
-    static buildDataChunkOpReturn(chunkData) {
-        let script = []
+    static buildDataChunkOpReturn(chunkData: Buffer) {
+        let script: number[] = []
 
         // OP Return Prefix
         script.push(0x6a)
@@ -513,11 +556,11 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkDataBuf = Buffer.from(chunkData);
-            script.push(utils.getPushDataOpcode(chunkDataBuf));
+            script.concat(BfpUtils.getPushDataOpcode(chunkDataBuf));
             chunkDataBuf.forEach((item) => script.push(item));
         }
 
-        let encodedScript = utils.encodeScript(script);
+        let encodedScript = BfpUtils.encodeScript(script);
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.");
         }
@@ -525,20 +568,9 @@ class Bfp {
     }
 
     // We may not need this function since the web browser wallet will be receiving funds in a single txn.
-    buildFundingTx(config) {
-        // Example config:
-        // let config = {
-        //     outputAddress: this.bfpAddress,
-        //     fundingAmountSatoshis: ____,
-        //     input_utxos: [{
-        //          txid: utxo.txid,
-        //          vout: utxo.vout,
-        //          satoshis: utxo.satoshis,
-        //          wif: wif
-        //     }]
-        //   }
+    buildFundingTx(config: FundingTxnConfig) {
 
-        let transactionBuilder;
+        let transactionBuilder: TransactionBuilder;
         if(this.networkstring === 'mainnet')
             transactionBuilder = new this.BITBOX.TransactionBuilder('bitcoincash');
         else
@@ -562,25 +594,14 @@ class Bfp {
         let i = 0;
         for (const txo of config.input_utxos) {
             let paymentKeyPair = this.BITBOX.ECPair.fromWIF(txo.wif);
-            transactionBuilder.sign(i, paymentKeyPair, null, transactionBuilder.hashTypes.SIGHASH_ALL, txo.satoshis);
+            transactionBuilder.sign(i, paymentKeyPair, undefined, transactionBuilder.hashTypes.SIGHASH_ALL, txo.satoshis);
             i++;
         }
 
         return transactionBuilder.build();
     }
 
-    buildChunkTx(config) {
-        // Example config: 
-        // let config = {
-        //     bfpChunkOpReturn: chunkOpReturn,
-        //     input_utxo: {
-        //          address: utxo.address??
-        //          txid: utxo.txid,
-        //          vout: utxo.vout,
-        //          satoshis: utxo.satoshis,
-        //          wif: wif
-        //     }
-        //   }
+    buildChunkTx(config: DataChunkTxnConfig) {
 
         let transactionBuilder
         if(this.networkstring === 'mainnet')
@@ -607,19 +628,7 @@ class Bfp {
         return transactionBuilder.build();
     }
 
-    buildMetadataTx(config) {
-        // Example config: 
-        // let config = {
-        //     bfpMetadataOpReturn: metadataOpReturn,
-        //     input_utxo:
-        //       {
-        //         txid: previousChunkTxid,
-        //         vout: 1,
-        //         satoshis: previousChunkTxData.satoshis,
-        //         wif: fundingWif 
-        //       },
-        //     fileReceiverAddress: outputAddress
-        //   }
+    buildMetadataTx(config: MetadataTxnConfig) {
 
         let transactionBuilder
         if(this.networkstring === 'mainnet')
@@ -650,7 +659,7 @@ class Bfp {
         return transactionBuilder.build();
     }
 
-    calculateMetadataMinerFee(genesisOpReturnLength, feeRate = 1) {
+    calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
         let fee = this.BITBOX.BitcoinCash.getByteCount({ P2PKH: 1 }, { P2PKH: 1 })
         fee += genesisOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
@@ -658,7 +667,7 @@ class Bfp {
         return fee
     }
 
-    calculateDataChunkMinerFee(sendOpReturnLength, feeRate = 1) {
+    calculateDataChunkMinerFee(sendOpReturnLength: number, feeRate = 1) {
         let fee = this.BITBOX.BitcoinCash.getByteCount({ P2PKH: 1 }, { P2PKH: 1 })
         fee += sendOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
@@ -666,7 +675,7 @@ class Bfp {
         return fee
     }
 
-    static calculateFileUploadCost(fileSizeBytes, configMetadataOpReturn, fee_rate = 1){
+    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate = 1){
         let byte_count = fileSizeBytes;
         let whole_chunks_count = Math.floor(fileSizeBytes / 220);
         let last_chunk_size = fileSizeBytes % 220;
@@ -705,7 +714,7 @@ class Bfp {
         return byte_count * fee_rate + dust_amount;
     }
 
-    static chunk_can_fit_in_final_opreturn (script_length, chunk_data_length) {
+    static chunk_can_fit_in_final_opreturn (script_length: number, chunk_data_length: number) {
         if (chunk_data_length === 0) {
             return true;
         }
@@ -746,9 +755,9 @@ class Bfp {
     //     return {address: cashAddress, wif: wif};
     // }
 
-    parsebfpDataOpReturn(hex) {
+    parsebfpDataOpReturn(hex: string) {
         const script = this.BITBOX.Script.toASM(Buffer.from(hex, 'hex')).split(' ');
-        let bfpData = {}
+        let bfpData: any = {}
         bfpData.type = 'metadata'
 
         if(script.length == 2) {

@@ -1,12 +1,13 @@
-const axios = require('axios');
+import Axios, * as axios from 'axios';
 
-module.exports = class BfpBitdb {
+export class BfpBitdb {
+    bitDbUrl: string;
 
-    constructor(network) {
+    constructor(network: string) {
         this.bitDbUrl = network === 'mainnet' ? 'https://bitdb.bitcoin.com/q/' : 'https://tbitdb.bitcoin.com/q/';
     }
 
-    async getFileMetadata(txid, apiKey=null) {
+    async getFileMetadata(txid: string, apiKey=null) {
 
         txid = txid.replace('bitcoinfile:', '');
         txid = txid.replace('bitcoinfiles:', '');
@@ -32,7 +33,7 @@ module.exports = class BfpBitdb {
 
         const json_str = JSON.stringify(query);
         const data = Buffer.from(json_str).toString('base64');
-        const response = (await axios({
+        const response = (await Axios(<axios.AxiosRequestConfig>{
             method: 'GET',
             url: this.bitDbUrl + data,
             headers: null,

@@ -1,15 +1,25 @@
-//const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
- 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+import { Client } from 'grpc-bchrpc-web';
+import { BITBOX } from 'bitbox-sdk';
+import { AddressUtxoResult } from 'bitcoin-com-rest';
 
-class BfpNetwork {
-    constructor(BITBOX) {
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+export class BfpNetwork {
+    BITBOX: BITBOX;
+    stopPayMonitor: boolean;
+    isMonitoringPayment: boolean;
+    client: Client;
+    constructor(BITBOX: BITBOX, grpcUrl="https://bchd.greyh.at:8335") {
         this.BITBOX = BITBOX;
         this.stopPayMonitor = false;
         this.isMonitoringPayment = false;
+        if(grpcUrl)
+            this.client = new Client(grpcUrl)
+        else
+            this.client = new Client()
     }
 
-    async getLastUtxoWithRetry(address, retries = 40) {
+    async getLastUtxoWithRetry(address: string, retries = 40) {
 		let result;
         let count = 0;
 		while(result == undefined){
@@ -23,7 +33,7 @@ class BfpNetwork {
 		return result;
     }
 
-    async getTransactionDetailsWithRetry(txid, retries = 40){
+    async getTransactionDetailsWithRetry(txid: string, retries = 40){
         let result;
         let count = 0;
         while(result == undefined){
@@ -37,17 +47,17 @@ class BfpNetwork {
         return result; 
     }
 
-    async getLastUtxo(address) {
+    async getLastUtxo(address: string) {
         // must be a cash or legacy addr
         if(!this.BITBOX.Address.isCashAddress(address) && !this.BITBOX.Address.isLegacyAddress(address))
             throw new Error("Not an a valid address format, must be cashAddr or Legacy address format.");
-        let res = (await this.BITBOX.Address.utxo([ address ]))[0];
+        let res = (<AddressUtxoResult[]>await this.BITBOX.Address.utxo([ address ]))[0];
         if(res && res.utxos && res.utxos.length > 0)
             return res.utxos[0];
         return res;
     }
 
-    async sendTx(hex, log=true) {
+    async sendTx(hex: string, log=true) {
         let res = await this.BITBOX.RawTransactions.sendRawTransaction(hex);
         if(res && res.error)
             return undefined;
@@ -58,7 +68,7 @@ class BfpNetwork {
         return res;
     }
 
-    async sendTxWithRetry(hex, retries = 40) {
+    async sendTxWithRetry(hex: string, retries = 40) {
         let res;
         let count = 0;
         while(res === undefined || res.length != 64) {
@@ -75,7 +85,7 @@ class BfpNetwork {
         return res;
     }
 
-    async monitorForPayment(paymentAddress, fee, onPaymentCB) {
+    async monitorForPayment(paymentAddress: string, fee: number, onPaymentCB: Function) {
         if(this.isMonitoringPayment || this.stopPayMonitor)
             return;
 
@@ -87,7 +97,14 @@ class BfpNetwork {
 
         while (true) {
             try {
-                var utxo = await this.getLastUtxo(paymentAddress);
+                var utxo = <{
+                    txid: string;
+                    vout: number;
+                    amount: number;
+                    satoshis: number;
+                    height: number;
+                    confirmations: number;
+                }> await this.getLastUtxo(paymentAddress);
                 if (utxo && utxo && utxo.satoshis >= fee && utxo.confirmations === 0) {
                     break;
                 }
