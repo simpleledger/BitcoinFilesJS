@@ -1,6 +1,6 @@
 {
   "name": "bitcoinfiles",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Upload and Download files to Bitcoin Cash blockchain",
   "main": "index.js",
   "files": [
@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "test": "mocha",
-    "build": "browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
+    "postinstall": "patch-package",
+    "build": "npx tsc && browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
   },
   "repository": {
     "type": "git",
@@ -34,12 +35,15 @@
   },
   "homepage": "https://github.com/simpleledgerinc/bitcoinfilesjs#readme",
   "dependencies": {
-    "grpc-bchrpc-web": "^0.5.0"
+    "buffer": "^6.0.3",
+    "grpc-bchrpc": "^0.0.10",
+    "bitcore-lib-cash": "^8.24.2"
   },
   "devDependencies": {
+    "@types/bitcore-lib-cash": "^8.23.2",
     "browserify": "^16.2.2",
     "mocha": "^5.2.0",
-    "uglify-es": "^3.3.9",
-    "bitbox-sdk": "^8.3.0"
+    "patch-package": "^6.2.2",
+    "uglify-es": "^3.3.9"
   }
 }

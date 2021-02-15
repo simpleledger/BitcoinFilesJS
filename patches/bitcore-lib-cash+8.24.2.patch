@@ -1,0 +1,15 @@
+diff --git a/node_modules/bitcore-lib-cash/index.js b/node_modules/bitcore-lib-cash/index.js
+index a562c53..eaa3746 100644
+--- a/node_modules/bitcore-lib-cash/index.js
++++ b/node_modules/bitcore-lib-cash/index.js
+@@ -12,8 +12,8 @@ bitcore.versionGuard = function(version) {
+     throw new Error(message);
+   }
+ };
+-bitcore.versionGuard(global._bitcoreCash);
+-global._bitcoreCash = bitcore.version;
++// bitcore.versionGuard(global._bitcoreCash);
++// global._bitcoreCash = bitcore.version;
+ 
+ // crypto
+ bitcore.crypto = {};

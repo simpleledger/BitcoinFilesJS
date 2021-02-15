@@ -1,9 +1,2 @@
-let bfp = require('./lib/bfp');
-let utils = require('./lib/utils');
-let network = require('./lib/network');
-
-module.exports = {
-    bfp: bfp,
-    utils: utils, 
-    network: network
-}
+export * from "./lib/bfp";
+export * from "./lib/utils";

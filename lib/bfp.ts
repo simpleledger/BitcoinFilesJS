@@ -1,15 +1,10 @@
-import { BfpUtils } from './utils';
-import { BITBOX, TransactionBuilder } from 'bitbox-sdk';
-import { BfpNetwork } from './network';
-import { BfpBitdb} from './bitdb';
-import { Client } from 'grpc-bchrpc-web';
+import { Address, Script, Transaction } from "bitcore-lib-cash";
+import { Utils } from './utils';
+import { IGrpcClient } from 'grpc-bchrpc';
 
-// const BITBOXSDK = require('bitbox-sdk/lib/bitbox-sdk').default
-//     , BITBOX = new BITBOXSDK()
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-interface utxo {
+export interface utxo {
     txid: string;
     vout: number;
     amount?: number;
@@ -20,7 +15,7 @@ interface utxo {
     address?: string;
 }
 
-interface FileMetadata {
+export interface FileMetadata {
     msgType: number;
     chunkCount: number;
     fileName?: string;
@@ -32,47 +27,39 @@ interface FileMetadata {
     chunkData?: Buffer;
 }
 
-interface FundingTxnConfig {
+export interface FundingTxnConfig {
     outputAddress: string;
     fundingAmountSatoshis: number;
     input_utxos: utxo[];
 }
 
-interface MetadataTxnConfig {
+export interface MetadataTxnConfig {
     bfpMetadataOpReturn: Buffer;
     input_utxo: utxo
     fileReceiverAddress: string;
 }
 
-interface DataChunkTxnConfig {
+export interface DataChunkTxnConfig {
     bfpChunkOpReturn: Buffer;
     input_utxo: utxo
 }
 
-class Bfp {
-    BITBOX: BITBOX;
-    networkstring: string;
-    network: BfpNetwork;
-    bitdb: any;
-    client: Client;
-    constructor(BITBOX: BITBOX, network = 'mainnet', grpcUrl?: string) {
-        this.BITBOX = BITBOX;
-        this.networkstring = network;
-        this.network = new BfpNetwork(this.BITBOX, grpcUrl);
-        this.bitdb = new BfpBitdb(network);
-        if(grpcUrl)
-            this.client = new Client(grpcUrl);
-        else
-            this.client = new Client();
+export class Bfp {
+    client: IGrpcClient;
+
+    FEE_RATE = 1;
+
+    constructor(client: IGrpcClient) {
+        this.client = client;
     }
 
-    static get lokadIdHex() { return "42465000" }
+    static get bfpMagicHex() { return "42465000" }
 
     async uploadHashOnlyObject(type: number, // file = 1,  folder = 3
                                 fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress: string,             // string
-                                fundingWif: string,                 // hex string?
-                                objectDataArrayBuffer: Buffer,        // ArrayBuffer
+                                fundingAddress: string,           // string
+                                fundingWif: string,               // hex string?
+                                objectDataArrayBuffer: Buffer,    // ArrayBuffer
                                 objectName?: string,              // string
                                 objectExt?: string,               // string
                                 prevObjectSha256Hex?: string,     // hex string
@@ -83,7 +70,7 @@ class Bfp {
                                 uploadProgressCallback?: Function, 
                                 uploadFinishedCallback?: Function){
         let fileSize = objectDataArrayBuffer.byteLength;
-        let hash = this.BITBOX.Crypto.sha256(new Buffer(objectDataArrayBuffer)).toString('hex');
+        let hash = Utils.Hash256(objectDataArrayBuffer).toString('hex');
         
         // chunks
         let chunkCount = 0; //Math.floor(fileSize / 220);
@@ -102,7 +89,7 @@ class Bfp {
         };
 
         //* ** building transaction
-        let transactions = [];
+        let transactions: Transaction[] = [];
         let txid = fundingUtxo.txid;
         let satoshis = fundingUtxo.satoshis;
         let vout = fundingUtxo.vout;
@@ -116,7 +103,8 @@ class Bfp {
                 txid: txid,//chunksTx.getId(),
                 vout: vout,
                 satoshis: satoshis,//chunksTx.outs[1].value,
-                wif: fundingWif
+                wif: fundingWif,
+                address: fundingAddress
             },
             fileReceiverAddress: objectReceiverAddress != null ? objectReceiverAddress : fundingAddress
         };
@@ -137,8 +125,19 @@ class Bfp {
         if(uploadProgressCallback != null){
             uploadProgressCallback(0);
         }
-        console.log('transaction: ', transactions[0].toHex());
-        var bfTxId = await this.network.sendTxWithRetry(transactions[0].toHex());
+        console.log('transaction: ', transactions[0].serialize());
+        let bfTxId: string;
+        while (true) {
+            console.log(`sending metadata txn`);
+            try {
+                const res = await this.client.submitTransaction({ txnHex: transactions[0].serialize() });
+                bfTxId = Buffer.from(res.getHash_asU8().reverse()).toString("hex");
+                break;
+            } catch (err) {
+                console.log(`waiting 60 sec to try again: ${err}`);
+                await sleep(60000);
+            }
+        }
 
         // progress
         if(uploadProgressCallback != null){
@@ -229,7 +228,7 @@ class Bfp {
                             delay_ms=500) {
 
         let fileSize = fileDataArrayBuffer.byteLength;
-        let hash = this.BITBOX.Crypto.sha256(new Buffer(fileDataArrayBuffer)).toString('hex');
+        let hash = Utils.Sha256(fileDataArrayBuffer).toString('hex');
         
         // chunks
         let chunks = [];
@@ -277,8 +276,8 @@ class Bfp {
                 satoshis = fundingUtxo.satoshis;
                 vout = fundingUtxo.vout;
             } else {
-                txid = transactions[nId - 1].getId();
-                satoshis = transactions[nId - 1].outs[1].value;
+                txid = transactions[nId - 1].id;
+                satoshis = transactions[nId - 1].outputs[1].satoshis;
             }
 
             // build chunk data transaction
@@ -321,7 +320,8 @@ class Bfp {
                             txid: txid,
                             vout: vout,
                             satoshis: satoshis,
-                            wif: fundingWif
+                            wif: fundingWif,
+                            address: fundingAddress
                         },
                         fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
                     };
@@ -337,10 +337,11 @@ class Bfp {
                     let configMetaTx = {
                         bfpMetadataOpReturn: metaOpReturn,
                         input_utxo: {
-                            txid: chunksTx.getId(),
+                            txid: chunksTx.id,
                             vout: vout,
-                            satoshis: chunksTx.outs[1].value,
-                            wif: fundingWif
+                            satoshis: chunksTx.outputs[1].satoshis,
+                            wif: fundingWif,
+                            address: fundingAddress
                         },
                         fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
                     };
@@ -362,16 +363,40 @@ class Bfp {
         if(signFinishedCallback != null){
             signFinishedCallback();
         }
-        
+
         //* ** sending transaction
         nDiff = 100 / transactions.length;
         nCurPos = 0;
         if(uploadProgressCallback != null){
             uploadProgressCallback(0);
         }
+        let bfTxId: string;
         for (let nId = 0; nId < transactions.length; nId++) {
-            console.log('transaction: ', transactions[nId].toHex());
-            var bfTxId = await this.network.sendTxWithRetry(transactions[nId].toHex());
+            console.log('transaction: ', transactions[nId].id);
+
+            while (true) {
+                console.log(`upload progress: ${nCurPos}%`);
+                try {
+                    let txnHex = transactions[nId].uncheckedSerialize();
+                    const res = await this.client.submitTransaction({ txnHex });
+                    bfTxId = Buffer.from(res.getHash_asU8().reverse()).toString("hex");
+                    break;
+                } catch (err) {
+                    if (err.message.includes("fully-spent transaction")) {
+                        console.log(`skipping transaction already spent ${transactions[nId].id}`);
+                        break;
+                    } else if (err.message.includes("transaction already exists")) {
+                        console.log(`transaction already exists ${transactions[nId].id}`);
+                        break;
+                    } else if (err.message.includes("already have transaction")) {
+                        console.log(`already have transaction ${transactions[nId].id}`);
+                        break;
+                    } else {
+                        console.log(`waiting 60 sec to try again: ${err}`);
+                        await sleep(60000);
+                    }
+                }
+            }
             // progress
             if(uploadProgressCallback != null){
                 uploadProgressCallback(nCurPos);
@@ -382,7 +407,7 @@ class Bfp {
             await sleep(delay_ms);
         }
 
-        bfTxId = 'bitcoinfile:' + bfTxId;
+        bfTxId = 'bitcoinfile:' + bfTxId!;
         if(uploadFinishedCallback != null){
             uploadFinishedCallback(bfTxId);
         }
@@ -398,7 +423,7 @@ class Bfp {
         txid = txid.replace('bitcoinfiles:', '');
 
 
-        let tx = await this.client.getTransaction(txid, true);
+        let tx = await this.client.getTransaction({ hash: txid, reversedHashOrder: true });
         let prevHash = Buffer.from(tx.getTransaction()!.getInputsList()[0].getOutpoint()!.getHash_asU8()).toString('hex');
         let metadata_opreturn_hex = Buffer.from(tx.getTransaction()!.getOutputsList()[0].getPubkeyScript_asU8()).toString('hex')
         let bfpMsg = <any>this.parsebfpDataOpReturn(metadata_opreturn_hex);
@@ -415,7 +440,7 @@ class Bfp {
         for (let index = 0; index < downloadCount; index++) {
 
             // download prev txn
-            let tx = await this.client.getTransaction(prevHash);
+            let tx = await this.client.getTransaction({ hash: prevHash });
             prevHash = Buffer.from(tx.getTransaction()!.getInputsList()[0].getOutpoint()!.getHash_asU8()).toString('hex');
             let op_return_hex = Buffer.from(tx.getTransaction()!.getOutputsList()[0].getPubkeyScript_asU8()).toString('hex');
 
@@ -441,7 +466,7 @@ class Bfp {
         // TODO: check that metadata hash matches if one was provided.
         let passesHashCheck = false
         if(bfpMsg.sha256 != null){
-            let fileSha256 = this.BITBOX.Crypto.sha256(fileBuf);
+            let fileSha256 = Utils.Sha256(fileBuf);
             let res = Buffer.compare(fileSha256, bfpMsg.sha256);
             if(res === 0){
                 passesHashCheck = true;
@@ -459,17 +484,17 @@ class Bfp {
         script.push(0x6a);
 
         // Lokad Id
-        let lokadId = Buffer.from(Bfp.lokadIdHex, 'hex');
-        script.concat(BfpUtils.getPushDataOpcode(lokadId));
+        let lokadId = Buffer.from(Bfp.bfpMagicHex, 'hex');
+        script = script.concat(Utils.getPushDataOpcode(lokadId));
         lokadId.forEach((item) => script.push(item));
 
         // Message Type
-        script.concat(BfpUtils.getPushDataOpcode([config.msgType]));
+        script = script.concat(Utils.getPushDataOpcode([config.msgType]));
         script.push(config.msgType);
 
         // Chunk Count
-        let chunkCount = BfpUtils.int2FixedBuffer(config.chunkCount, 1)
-        script.concat(BfpUtils.getPushDataOpcode(chunkCount))
+        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 1)
+        script = script.concat(Utils.getPushDataOpcode(chunkCount))
         chunkCount.forEach((item) => script.push(item))
 
         // File Name
@@ -477,7 +502,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileName = Buffer.from(config.fileName, 'utf8')
-            script.concat(BfpUtils.getPushDataOpcode(fileName));
+            script = script.concat(Utils.getPushDataOpcode(fileName));
             fileName.forEach((item) => script.push(item));
         }
 
@@ -486,12 +511,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileExt = Buffer.from(config.fileExt, 'utf8');
-            script.concat(BfpUtils.getPushDataOpcode(fileExt));
+            script = script.concat(Utils.getPushDataOpcode(fileExt));
             fileExt.forEach((item) => script.push(item));
         }
 
-        let fileSize = BfpUtils.int2FixedBuffer(config.fileSize, 2)
-        script.concat(BfpUtils.getPushDataOpcode(fileSize))
+        let fileSize = Utils.int2FixedBuffer(config.fileSize, 2)
+        script = script.concat(Utils.getPushDataOpcode(fileSize))
         fileSize.forEach((item) => script.push(item))
 
         // File SHA256
@@ -500,7 +525,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.fileSha256Hex.length === 64 && re.test(config.fileSha256Hex)) {
             let fileSha256Buf = Buffer.from(config.fileSha256Hex, 'hex');
-            script.concat(BfpUtils.getPushDataOpcode(fileSha256Buf));
+            script = script.concat(Utils.getPushDataOpcode(fileSha256Buf));
             fileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("File hash must be provided as a 64 character hex string");
@@ -511,7 +536,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else if (config.prevFileSha256Hex.length === 64 && re.test(config.prevFileSha256Hex)) {
             let prevFileSha256Buf = Buffer.from(config.prevFileSha256Hex, 'hex');
-            script.concat(BfpUtils.getPushDataOpcode(prevFileSha256Buf));
+            script = script.concat(Utils.getPushDataOpcode(prevFileSha256Buf));
             prevFileSha256Buf.forEach((item) => script.push(item));
         } else {
             throw Error("Previous File hash must be provided as a 64 character hex string")
@@ -522,7 +547,7 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let fileUri = Buffer.from(config.fileUri, 'utf8');
-            script.concat(BfpUtils.getPushDataOpcode(fileUri));
+            script = script.concat(Utils.getPushDataOpcode(fileUri));
             fileUri.forEach((item) => script.push(item));
         }
 
@@ -531,12 +556,12 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkData = Buffer.from(config.chunkData);
-            script.concat(BfpUtils.getPushDataOpcode(chunkData));
+            script = script.concat(Utils.getPushDataOpcode(chunkData));
             chunkData.forEach((item) => script.push(item));
         }
 
         //console.log('script: ', script);
-        let encodedScript = BfpUtils.encodeScript(script);
+        let encodedScript = Utils.encodeScript(script);
 
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.")
@@ -556,11 +581,11 @@ class Bfp {
             [0x4c, 0x00].forEach((item) => script.push(item));
         } else {
             let chunkDataBuf = Buffer.from(chunkData);
-            script.concat(BfpUtils.getPushDataOpcode(chunkDataBuf));
+            script = script.concat(Utils.getPushDataOpcode(chunkDataBuf));
             chunkDataBuf.forEach((item) => script.push(item));
         }
 
-        let encodedScript = BfpUtils.encodeScript(script);
+        let encodedScript = Utils.encodeScript(script);
         if (encodedScript.length > 223) {
             throw Error("Script too long, must be less than 223 bytes.");
         }
@@ -570,75 +595,91 @@ class Bfp {
     // We may not need this function since the web browser wallet will be receiving funds in a single txn.
     buildFundingTx(config: FundingTxnConfig) {
 
-        let transactionBuilder: TransactionBuilder;
-        if(this.networkstring === 'mainnet')
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bitcoincash');
-        else
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bchtest');
-
+        let tx = new Transaction();
+        let feeRate = this.FEE_RATE; // sat/byte
+        tx.feePerByte(feeRate);
         let satoshis = 0;
         config.input_utxos.forEach(token_utxo => {
-            transactionBuilder.addInput(token_utxo.txid, token_utxo.vout);
+            tx.addInput(new Transaction.Input.PublicKeyHash({
+                output: new Transaction.Output({
+                    script: Script.buildPublicKeyHashOut(new Address(token_utxo.address!)),
+                    satoshis: token_utxo.satoshis
+                }),
+                prevTxId: Buffer.from(token_utxo.txid, "hex"),
+                outputIndex: token_utxo.vout,
+                script: Script.empty()
+            }));
             satoshis += token_utxo.satoshis;
         });
 
-        let fundingMinerFee = this.BITBOX.BitcoinCash.getByteCount({ P2PKH: config.input_utxos.length }, { P2PKH: 1 })
+        // @ts-ignore
+        let fundingMinerFee = tx._estimateSize() * feeRate;
         let outputAmount = satoshis - fundingMinerFee;
 
-        //assert config.fundingAmountSatoshis == outputAmount //TODO: Use JS syntax and throw on error
-
         // Output exact funding amount
-        transactionBuilder.addOutput(config.outputAddress, outputAmount);
+        tx.addOutput(new Transaction.Output({
+            script: new Script(new Address(config.outputAddress)),
+            satoshis: outputAmount
+        }));
 
         // sign inputs
-        let i = 0;
-        for (const txo of config.input_utxos) {
-            let paymentKeyPair = this.BITBOX.ECPair.fromWIF(txo.wif);
-            transactionBuilder.sign(i, paymentKeyPair, undefined, transactionBuilder.hashTypes.SIGHASH_ALL, txo.satoshis);
-            i++;
-        }
+        tx.sign([...config.input_utxos.map(o => o.wif!)]);
 
-        return transactionBuilder.build();
+        return tx;
     }
 
     buildChunkTx(config: DataChunkTxnConfig) {
 
-        let transactionBuilder
-        if(this.networkstring === 'mainnet')
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bitcoincash');
-        else
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bchtest');
+        let tx = new Transaction();
+        tx.feePerByte(this.FEE_RATE);
 
-        transactionBuilder.addInput(config.input_utxo.txid, config.input_utxo.vout);
+        tx.addInput(new Transaction.Input.PublicKeyHash({
+            output: new Transaction.Output({
+                script: Script.buildPublicKeyHashOut(new Address(config.input_utxo.address!)),
+                satoshis: config.input_utxo.satoshis
+            }),
+            prevTxId: Buffer.from(config.input_utxo.txid, "hex"),
+            outputIndex: config.input_utxo.vout,
+            script: Script.empty()
+        }));
 
         let chunkTxFee = this.calculateDataChunkMinerFee(config.bfpChunkOpReturn.length);
         let outputAmount = config.input_utxo.satoshis - chunkTxFee;
 
         // Chunk OpReturn
-        transactionBuilder.addOutput(config.bfpChunkOpReturn, 0);
+        tx.addOutput(new Transaction.Output({
+            script: config.bfpChunkOpReturn,
+            satoshis: 0
+        }));
 
         // Genesis token mint
-        transactionBuilder.addOutput(config.input_utxo.address, outputAmount);
+        tx.addOutput(new Transaction.Output({
+            script: new Script(new Address(config.input_utxo.address!)),
+            satoshis: outputAmount
+        }));
 
         // sign inputs
+        tx.sign(config.input_utxo.wif!);
 
-        let paymentKeyPair = this.BITBOX.ECPair.fromWIF(config.input_utxo.wif);
-        transactionBuilder.sign(0, paymentKeyPair, null, transactionBuilder.hashTypes.SIGHASH_ALL, config.input_utxo.satoshis);
-
-        return transactionBuilder.build();
+        return tx;
     }
 
     buildMetadataTx(config: MetadataTxnConfig) {
 
-        let transactionBuilder
-        if(this.networkstring === 'mainnet')
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bitcoincash');
-        else
-            transactionBuilder = new this.BITBOX.TransactionBuilder('bchtest');
+        let tx = new Transaction();
+        tx.feePerByte(this.FEE_RATE);
 
         let inputSatoshis = 0;
 
-        transactionBuilder.addInput(config.input_utxo.txid, config.input_utxo.vout);
+        tx.addInput(new Transaction.Input.PublicKeyHash({
+            output: new Transaction.Output({
+                script: Script.buildPublicKeyHashOut(new Address(config.input_utxo.address!)),
+                satoshis: config.input_utxo.satoshis
+            }),
+            prevTxId: Buffer.from(config.input_utxo.txid, "hex"),
+            outputIndex: config.input_utxo.vout,
+            script: Script.empty()
+        }));
         inputSatoshis += config.input_utxo.satoshis;
 
 
@@ -646,21 +687,25 @@ class Bfp {
         let output = inputSatoshis - metadataFee;
 
         // Metadata OpReturn
-        transactionBuilder.addOutput(config.bfpMetadataOpReturn, 0);
+        tx.addOutput(new Transaction.Output({
+            script: config.bfpMetadataOpReturn,
+            satoshis: 0
+        }));
 
         // outputs
-        let outputAddress = this.BITBOX.Address.toCashAddress(config.fileReceiverAddress);
-        transactionBuilder.addOutput(outputAddress, output);
+        tx.addOutput(new Transaction.Output({
+            script: new Script(new Address(config.fileReceiverAddress)),
+            satoshis: output
+        }));
 
         // sign inputs
-        let paymentKeyPair = this.BITBOX.ECPair.fromWIF(config.input_utxo.wif);
-        transactionBuilder.sign(0, paymentKeyPair, null, transactionBuilder.hashTypes.SIGHASH_ALL, config.input_utxo.satoshis);
+        tx.sign(config.input_utxo.wif!);
 
-        return transactionBuilder.build();
+        return tx;
     }
 
     calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
-        let fee = this.BITBOX.BitcoinCash.getByteCount({ P2PKH: 1 }, { P2PKH: 1 })
+        let fee = 195; // 1 p2pkh and 1 p2pkh output ~195 bytes
         fee += genesisOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
         fee *= feeRate
@@ -668,7 +713,7 @@ class Bfp {
     }
 
     calculateDataChunkMinerFee(sendOpReturnLength: number, feeRate = 1) {
-        let fee = this.BITBOX.BitcoinCash.getByteCount({ P2PKH: 1 }, { P2PKH: 1 })
+        let fee = 195; // 1 p2pkh and 1 p2pkh output ~195 bytes
         fee += sendOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
         fee *= feeRate
@@ -727,36 +772,8 @@ class Bfp {
         return false;
     }
 
-    // static getFileUploadPaymentInfoFromHdNode(masterHdNode) {
-    //     let hdNode = this.BITBOX.HDNode.derivePath(masterHdNode, "m/44'/145'/1'");
-    //     let node0 = this.BITBOX.HDNode.derivePath(hdNode, '0/0');
-    //     let keyPair = this.BITBOX.HDNode.toKeyPair(node0);
-    //     let wif = this.BITBOX.ECPair.toWIF(keyPair);
-    //     let ecPair = this.BITBOX.ECPair.fromWIF(wif);
-    //     let address = this.BITBOX.ECPair.toLegacyAddress(ecPair);
-    //     let cashAddress = this.BITBOX.Address.toCashAddress(address);
-
-    //     return {address: cashAddress, wif: wif};
-    // }
-
-    // getFileUploadPaymentInfoFromSeedPhrase(seedPhrase) {
-    //     let phrase = seedPhrase;
-    //     let seedBuffer = this.BITBOX.Mnemonic.toSeed(phrase);
-    //     // create HDNode from seed buffer
-    //     let hdNode = this.BITBOX.HDNode.fromSeed(seedBuffer);
-    //     let hdNode2 = this.BITBOX.HDNode.derivePath(hdNode, "m/44'/145'/1'");
-    //     let node0 = this.BITBOX.HDNode.derivePath(hdNode2, '0/0');
-    //     let keyPair = this.BITBOX.HDNode.toKeyPair(node0);
-    //     let wif = this.BITBOX.ECPair.toWIF(keyPair);
-    //     let ecPair = this.BITBOX.ECPair.fromWIF(wif);
-    //     let address = this.BITBOX.ECPair.toLegacyAddress(ecPair);
-    //     let cashAddress = this.BITBOX.Address.toCashAddress(address);
-
-    //     return {address: cashAddress, wif: wif};
-    // }
-
     parsebfpDataOpReturn(hex: string) {
-        const script = this.BITBOX.Script.toASM(Buffer.from(hex, 'hex')).split(' ');
+        const script =  Script.fromHex(hex).toASM();
         let bfpData: any = {}
         bfpData.type = 'metadata'
 
@@ -774,7 +791,7 @@ class Bfp {
             throw new Error('Not an OP_RETURN');
         }
 
-        if (script[1] !== Bfp.lokadIdHex) {
+        if (script[1] !== Bfp.bfpMagicHex) {
             throw new Error('Not a BFP OP_RETURN');
         }
 
@@ -846,5 +863,3 @@ class Bfp {
         return bfpData;
     }
 }
-
-module.exports = Bfp;

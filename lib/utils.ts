@@ -1,4 +1,24 @@
-export class BfpUtils {
+import * as crypto from "crypto";
+
+export class Utils {
+
+    public static Sha256(message: Buffer): Buffer {
+        const hash1 = crypto.createHash("sha256");
+        hash1.update(message);
+        return Buffer.from(hash1.digest().toJSON().data);
+    }
+
+    public static Hash256(message: Buffer): Buffer {
+        const hash1 = crypto.createHash("sha256");
+        const hash2 = crypto.createHash("sha256");
+        hash1.update(message);
+        hash2.update(hash1.digest());
+        return Buffer.from(hash2.digest().toJSON().data);
+    }
+
+    public static HashTxid(txnBuf: Buffer): Buffer {
+        return Buffer.from(Utils.Hash256(txnBuf).reverse());
+    }
 
     static getPushDataOpcode(data: Buffer|number[]) {
         let length = data.length
