@@ -429,7 +429,7 @@ export class Bfp {
         let bfpMsg = <any>this.parsebfpDataOpReturn(metadata_opreturn_hex);
 
         let downloadCount = bfpMsg.chunk_count;
-        if(bfpMsg.chunk_count > 0 && bfpMsg.chunk != null) {
+        if(bfpMsg.chunk_count > 0 && bfpMsg.chunk != null && bfpMsg.chunk.length > 0) {
             downloadCount = bfpMsg.chunk_count - 1;
             chunks.push(bfpMsg.chunk)
             size += <number>bfpMsg.chunk.length;
@@ -773,9 +773,14 @@ export class Bfp {
     }
 
     parsebfpDataOpReturn(hex: string) {
-        const script =  Script.fromHex(hex).toASM();
+        const decodedScript: any = Script.fromHex(hex);
         let bfpData: any = {}
         bfpData.type = 'metadata'
+        let script = [];
+        for (var i = 0; i < decodedScript.chunks.length; i++) {
+            let chunk = decodedScript.chunks[i];
+            script.push(decodedScript._chunkToString(chunk, 'asm').slice(1));
+        }
 
         if(script.length == 2) {
             bfpData.type = 'chunk';
@@ -796,7 +801,7 @@ export class Bfp {
         }
 
         // 01 = On-chain File
-        if (script[2] != 'OP_1') { // NOTE: bitcoincashlib-js converts hex 01 to OP_1 due to BIP62.3 enforcement
+        if ((script[2] != 'OP_1') && (script[2] != '01')) {
             throw new Error('Not a BFP file (type 0x01)');
         }
 
