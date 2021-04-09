@@ -50,7 +50,7 @@ Below is a simple example.  For a more complete React.js [file upload example](h
 ```javascript
 const Grpc = require('grpc-bchrpc-node'); // or window's property equivalents
 const Bfp = require('bitcoinfiles').Bfp;
-const Utils = require('bitcoinfiles').Ufp;
+const Utils = require('bitcoinfiles').Utils;
 const grpc = new Grpc.GrpcClient;
 const bfp = new Bfp(grpc);
 
