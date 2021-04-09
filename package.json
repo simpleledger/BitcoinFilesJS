@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "mocha",
+    "test": "npm run build && mocha",
     "postinstall": "patch-package",
     "build": "npx tsc && browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
   },
