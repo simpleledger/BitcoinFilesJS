@@ -15,7 +15,7 @@ Other tools using the Bitcoin Files Protocol include:
 
 #### For browser
 ```<script src='https://unpkg.com/bitcoinfiles'></script>```
- 
+
 
 # Example File Download
 ```javascript
@@ -44,7 +44,7 @@ let result;
 
 ```
 
-# Example File Upload 
+# Example File Upload
 Below is a simple example.  For a more complete React.js [file upload example](https://github.com/simpleledger/SimpleToken.cash/blob/master/src/UploadDialog.js) visit [SimpleToken.cash website](https://simpletoken.cash)
 
 ```javascript
@@ -55,7 +55,7 @@ const grpc = new Grpc.GrpcClient;
 const bfp = new Bfp(grpc);
 
 
-// 1 - get a file and file metadata somehow 
+// 1 - get a file and file metadata somehow
 const someFileBuffer = new Buffer.from('aabbccddeeff', 'hex');
 const fileName = 'a test file';
 const fileExt = 'txt';
@@ -95,7 +95,7 @@ let fileId;
 (async function(){
     fileId = await bfp.uploadFile(fundingUtxo, fundingAddress, fundingWif, someFileBuffer, fileName, fileExt);
     console.log('fileId: ', fileId);
-})(); 
+})();
 
 // wait for upload to complete resolve... Done.
 

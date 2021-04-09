@@ -56,22 +56,22 @@ export class Bfp {
     static get bfpMagicHex() { return "42465000" }
 
     async uploadHashOnlyObject(type: number, // file = 1,  folder = 3
-                                fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress: string,           // string
-                                fundingWif: string,               // hex string?
-                                objectDataArrayBuffer: Buffer,    // ArrayBuffer
-                                objectName?: string,              // string
-                                objectExt?: string,               // string
-                                prevObjectSha256Hex?: string,     // hex string
-                                objectExternalUri?: string,       // utf8 string
-                                objectReceiverAddress?: string,   // string
-                                signProgressCallback?: Function, 
-                                signFinishedCallback?: Function, 
-                                uploadProgressCallback?: Function, 
-                                uploadFinishedCallback?: Function){
+        fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
+        fundingAddress: string,           // string
+        fundingWif: string,               // hex string?
+        objectDataArrayBuffer: Buffer,    // ArrayBuffer
+        objectName?: string,              // string
+        objectExt?: string,               // string
+        prevObjectSha256Hex?: string,     // hex string
+        objectExternalUri?: string,       // utf8 string
+        objectReceiverAddress?: string,   // string
+        signProgressCallback?: Function,
+        signFinishedCallback?: Function,
+        uploadProgressCallback?: Function,
+        uploadFinishedCallback?: Function) {
         let fileSize = objectDataArrayBuffer.byteLength;
         let hash = Utils.Hash256(objectDataArrayBuffer).toString('hex');
-        
+
         // chunks
         let chunkCount = 0; //Math.floor(fileSize / 220);
 
@@ -112,17 +112,17 @@ export class Bfp {
         transactions.push(metaTx);
 
         // sign progress
-        if(signProgressCallback != null){
+        if (signProgressCallback != null) {
             signProgressCallback(100);
         }
 
         // progress : signing finished
-        if(signFinishedCallback != null){
+        if (signFinishedCallback != null) {
             signFinishedCallback();
         }
-        
+
         //* ** sending transaction
-        if(uploadProgressCallback != null){
+        if (uploadProgressCallback != null) {
             uploadProgressCallback(0);
         }
         console.log('transaction: ', transactions[0].serialize());
@@ -140,12 +140,12 @@ export class Bfp {
         }
 
         // progress
-        if(uploadProgressCallback != null){
+        if (uploadProgressCallback != null) {
             uploadProgressCallback(100);
         }
 
         bfTxId = 'bitcoinfile:' + bfTxId;
-        if(uploadFinishedCallback != null){
+        if (uploadFinishedCallback != null) {
             uploadFinishedCallback(bfTxId);
         }
 
@@ -153,83 +153,83 @@ export class Bfp {
     }
 
     async uploadFolderHashOnly(fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress: string,             // string
-                                fundingWif: string,                 // hex string?
-                                folderDataArrayBuffer: Buffer,        // ArrayBuffer
-                                folderName?: string,              // string
-                                folderExt?: string,               // string
-                                prevFolderSha256Hex?: string,         // hex string
-                                folderExternalUri?: string,       // utf8 string
-                                folderReceiverAddress?: string,   // string
-                                signProgressCallback?: Function, 
-                                signFinishedCallback?: Function, 
-                                uploadProgressCallback?: Function, 
-                                uploadFinishedCallback?: Function){
+        fundingAddress: string,             // string
+        fundingWif: string,                 // hex string?
+        folderDataArrayBuffer: Buffer,        // ArrayBuffer
+        folderName?: string,              // string
+        folderExt?: string,               // string
+        prevFolderSha256Hex?: string,         // hex string
+        folderExternalUri?: string,       // utf8 string
+        folderReceiverAddress?: string,   // string
+        signProgressCallback?: Function,
+        signFinishedCallback?: Function,
+        uploadProgressCallback?: Function,
+        uploadFinishedCallback?: Function) {
         return await this.uploadHashOnlyObject(3,
-                                                fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
-                                                fundingAddress,             // string
-                                                fundingWif,                 // hex string?
-                                                folderDataArrayBuffer,      // ArrayBuffer
-                                                folderName,            // string
-                                                folderExt,             // string
-                                                prevFolderSha256Hex,   // hex string
-                                                folderExternalUri,     // utf8 string
-                                                folderReceiverAddress, // string
-                                                signProgressCallback, 
-                                                signFinishedCallback, 
-                                                uploadProgressCallback, 
-                                                uploadFinishedCallback
+            fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
+            fundingAddress,             // string
+            fundingWif,                 // hex string?
+            folderDataArrayBuffer,      // ArrayBuffer
+            folderName,            // string
+            folderExt,             // string
+            prevFolderSha256Hex,   // hex string
+            folderExternalUri,     // utf8 string
+            folderReceiverAddress, // string
+            signProgressCallback,
+            signFinishedCallback,
+            uploadProgressCallback,
+            uploadFinishedCallback
         )
     }
 
     async uploadFileHashOnly(fundingUtxo: utxo,                   // object in form: { txid:'', satoshis:#, vout:# }
-                                fundingAddress: string,             // string
-                                fundingWif: string,                 // hex string?
-                                fileDataArrayBuffer: Buffer,        // ArrayBuffer
-                                fileName?: string,              // string
-                                fileExt?: string,               // string
-                                prevFileSha256Hex?: string,     // hex string
-                                fileExternalUri?: string,       // utf8 string
-                                fileReceiverAddress?: string,   // string
-                                signProgressCallback?: Function, 
-                                signFinishedCallback?: Function, 
-                                uploadProgressCallback?: Function, 
-                                uploadFinishedCallback?: Function){
+        fundingAddress: string,             // string
+        fundingWif: string,                 // hex string?
+        fileDataArrayBuffer: Buffer,        // ArrayBuffer
+        fileName?: string,              // string
+        fileExt?: string,               // string
+        prevFileSha256Hex?: string,     // hex string
+        fileExternalUri?: string,       // utf8 string
+        fileReceiverAddress?: string,   // string
+        signProgressCallback?: Function,
+        signFinishedCallback?: Function,
+        uploadProgressCallback?: Function,
+        uploadFinishedCallback?: Function) {
         return await this.uploadHashOnlyObject(1,
-                                                fundingUtxo,          // object in form: { txid:'', satoshis:#, vout:# }
-                                                fundingAddress,       // string
-                                                fundingWif,           // hex string?
-                                                fileDataArrayBuffer,  // ArrayBuffer
-                                                fileName,             // string
-                                                fileExt,              // string
-                                                prevFileSha256Hex,    // hex string
-                                                fileExternalUri,      // utf8 string
-                                                fileReceiverAddress,  // string
-                                                signProgressCallback, 
-                                                signFinishedCallback, 
-                                                uploadProgressCallback, 
-                                                uploadFinishedCallback
+            fundingUtxo,          // object in form: { txid:'', satoshis:#, vout:# }
+            fundingAddress,       // string
+            fundingWif,           // hex string?
+            fileDataArrayBuffer,  // ArrayBuffer
+            fileName,             // string
+            fileExt,              // string
+            prevFileSha256Hex,    // hex string
+            fileExternalUri,      // utf8 string
+            fileReceiverAddress,  // string
+            signProgressCallback,
+            signFinishedCallback,
+            uploadProgressCallback,
+            uploadFinishedCallback
         )
     }
 
     async uploadFile(fundingUtxo: utxo,                       // object in form: { txid:'', satoshis:#, vout:# }
-                            fundingAddress: string,             // string
-                            fundingWif: string,                 // hex string?
-                            fileDataArrayBuffer: Buffer,        // ArrayBuffer
-                            fileName?: string,              // string
-                            fileExt?: string,               // string
-                            prevFileSha256Hex?: string,     // hex string
-                            fileExternalUri?: string,       // utf8 string
-                            fileReceiverAddress?: string,   // string
-                            signProgressCallback?: Function, 
-                            signFinishedCallback?: Function, 
-                            uploadProgressCallback?: Function, 
-                            uploadFinishedCallback?: Function, 
-                            delay_ms=500) {
+        fundingAddress: string,             // string
+        fundingWif: string,                 // hex string?
+        fileDataArrayBuffer: Buffer,        // ArrayBuffer
+        fileName?: string,              // string
+        fileExt?: string,               // string
+        prevFileSha256Hex?: string,     // hex string
+        fileExternalUri?: string,       // utf8 string
+        fileReceiverAddress?: string,   // string
+        signProgressCallback?: Function,
+        signFinishedCallback?: Function,
+        uploadProgressCallback?: Function,
+        uploadFinishedCallback?: Function,
+        delay_ms = 500) {
 
         let fileSize = fileDataArrayBuffer.byteLength;
         let hash = Utils.Sha256(fileDataArrayBuffer).toString('hex');
-        
+
         // chunks
         let chunks = [];
         let chunkCount = Math.floor(fileSize / 220);
@@ -353,21 +353,21 @@ export class Bfp {
             }
 
             // sign progress
-            if(signProgressCallback != null){
+            if (signProgressCallback != null) {
                 signProgressCallback(nCurPos)
             }
             nCurPos += nDiff;
         }
 
         // progress : signing finished
-        if(signFinishedCallback != null){
+        if (signFinishedCallback != null) {
             signFinishedCallback();
         }
 
         //* ** sending transaction
         nDiff = 100 / transactions.length;
         nCurPos = 0;
-        if(uploadProgressCallback != null){
+        if (uploadProgressCallback != null) {
             uploadProgressCallback(0);
         }
         let bfTxId: string;
@@ -398,7 +398,7 @@ export class Bfp {
                 }
             }
             // progress
-            if(uploadProgressCallback != null){
+            if (uploadProgressCallback != null) {
                 uploadProgressCallback(nCurPos);
             }
             nCurPos += nDiff;
@@ -408,7 +408,7 @@ export class Bfp {
         }
 
         bfTxId = 'bitcoinfile:' + bfTxId!;
-        if(uploadFinishedCallback != null){
+        if (uploadFinishedCallback != null) {
             uploadFinishedCallback(bfTxId);
         }
 
@@ -429,7 +429,7 @@ export class Bfp {
         let bfpMsg = <any>this.parsebfpDataOpReturn(metadata_opreturn_hex);
 
         let downloadCount = bfpMsg.chunk_count;
-        if(bfpMsg.chunk_count > 0 && bfpMsg.chunk != null && bfpMsg.chunk.length > 0) {
+        if (bfpMsg.chunk_count > 0 && bfpMsg.chunk != null && bfpMsg.chunk.length > 0) {
             downloadCount = bfpMsg.chunk_count - 1;
             chunks.push(bfpMsg.chunk)
             size += <number>bfpMsg.chunk.length;
@@ -449,8 +449,8 @@ export class Bfp {
             chunks.push(bfpMsg.chunk);
             size += <number>bfpMsg.chunk.length;
 
-            if(progressCallback) {
-                progressCallback(index/(downloadCount-1));
+            if (progressCallback) {
+                progressCallback(index / (downloadCount - 1));
             }
         }
 
@@ -465,10 +465,10 @@ export class Bfp {
 
         // TODO: check that metadata hash matches if one was provided.
         let passesHashCheck = false
-        if(bfpMsg.sha256 != null){
+        if (bfpMsg.sha256 != null) {
             let fileSha256 = Utils.Sha256(fileBuf);
             let res = Buffer.compare(fileSha256, bfpMsg.sha256);
-            if(res === 0){
+            if (res === 0) {
                 passesHashCheck = true;
             }
         }
@@ -478,7 +478,7 @@ export class Bfp {
 
     static buildMetadataOpReturn(config: FileMetadata) {
 
-        let script:number[] = [];
+        let script: number[] = [];
 
         // OP Return Prefix
         script.push(0x6a);
@@ -720,7 +720,7 @@ export class Bfp {
         return fee
     }
 
-    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate = 1){
+    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate = 1) {
         let byte_count = fileSizeBytes;
         let whole_chunks_count = Math.floor(fileSizeBytes / 220);
         let last_chunk_size = fileSizeBytes % 220;
@@ -736,8 +736,7 @@ export class Bfp {
         // cost of chunk trasnsaction op_returns
         byte_count += (whole_chunks_count + 1) * 3;
 
-        if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size))
-        {
+        if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size)) {
             // add fees for an extra chunk transaction input/output
             byte_count += 149 + 35;
             // opcode cost for chunk op_return
@@ -759,7 +758,7 @@ export class Bfp {
         return byte_count * fee_rate + dust_amount;
     }
 
-    static chunk_can_fit_in_final_opreturn (script_length: number, chunk_data_length: number) {
+    static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number) {
         if (chunk_data_length === 0) {
             return true;
         }
@@ -782,11 +781,11 @@ export class Bfp {
             script.push(decodedScript._chunkToString(chunk, 'asm').slice(1));
         }
 
-        if(script.length == 2) {
+        if (script.length == 2) {
             bfpData.type = 'chunk';
             try {
                 bfpData.chunk = Buffer.from(script[1], 'hex');
-            } catch(e) {
+            } catch (e) {
                 bfpData.chunk = null;
             }
             return bfpData;
@@ -801,66 +800,66 @@ export class Bfp {
         }
 
         // 01 = On-chain File
-        if ((script[2] != 'OP_1') && (script[2] != '01')) {
+        if ((script[2] != 'OP_1') && (script[2] != '01')) {
             throw new Error('Not a BFP file (type 0x01)');
         }
 
         // chunk count
         bfpData.chunk_count = parseInt(script[3], 16);
-        if(script[3].includes('OP_')){
+        if (script[3].includes('OP_')) {
             let val = script[3].replace('OP_', '');
             bfpData.chunk_count = parseInt(val);
         }
 
         // filename
-        if(script[4] == 'OP_0'){
+        if (script[4] == 'OP_0') {
             bfpData.filename = null
         } else {
             bfpData.filename = Buffer.from(script[4], 'hex').toString('utf8');
         }
 
         // fileext
-        if(script[5] == 'OP_0'){
+        if (script[5] == 'OP_0') {
             bfpData.fileext = null
         } else {
             bfpData.fileext = Buffer.from(script[5], 'hex').toString('utf8');
         }
 
         // filesize
-        if(script[6] == 'OP_0'){
+        if (script[6] == 'OP_0') {
             bfpData.filesize = null
         } else {
             bfpData.filesize = parseInt(script[6], 16);
         }
 
         // file_sha256
-        if(script[7] == 'OP_0'){
+        if (script[7] == 'OP_0') {
             bfpData.sha256 = null
         } else {
             bfpData.sha256 = Buffer.from(script[7], 'hex');
         }
 
         // prev_file_sha256
-        if(script[8] == 'OP_0'){
+        if (script[8] == 'OP_0') {
             bfpData.prevsha256 = null
         } else {
             bfpData.prevsha256 = Buffer.from(script[8], 'hex');
         }
 
         // uri
-        if(script[9] == 'OP_0'){
+        if (script[9] == 'OP_0') {
             bfpData.uri = null
         } else {
             bfpData.uri = Buffer.from(script[9], 'hex').toString('utf8');
         }
 
         // chunk_data
-        if(script[10] == 'OP_0'){
+        if (script[10] == 'OP_0') {
             bfpData.chunk = null
         } else {
             try {
                 bfpData.chunk = Buffer.from(script[10], 'hex');
-            } catch(e) {
+            } catch (e) {
                 bfpData.chunk = null
             }
         }

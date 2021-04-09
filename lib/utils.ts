@@ -20,7 +20,7 @@ export class Utils {
         return Buffer.from(Utils.Hash256(txnBuf).reverse());
     }
 
-    static getPushDataOpcode(data: Buffer|number[]) {
+    static getPushDataOpcode(data: Buffer | number[]) {
         let length = data.length
 
         if (length === 0)
