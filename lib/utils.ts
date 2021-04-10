@@ -35,7 +35,8 @@ export class Utils {
 
     static int2FixedBuffer(amount: number, size: number) {
         let hex = amount.toString(16);
-        hex = hex.padStart(size * 2, '0');
+        // pad the beginning with '0' to length size * 2
+        hex = '0'.repeat(size * 2 - hex.length) + hex;
         if (hex.length % 2) hex = '0' + hex;
         return Buffer.from(hex, 'hex');
     }
