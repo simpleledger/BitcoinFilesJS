@@ -279,6 +279,14 @@ export class Bfp {
             // We forced at least 2 P2SH outputs of the last transaction already
             // unless the file was too small (the second condition)
             if ((capacity >= lastPushSize) && !(padDifference > pushSize)) {
+                if (uploadMethod == 2) {
+                    // So a padded P2SH push is not needed
+                    numberOfOuts[transactionCount - 1]--;
+                } else {
+                    // One padded OP_RETURN push is not needed
+                    transactionCount--;
+                }
+
                 // add data to metadata push
                 let configMetaOpReturn: FileMetadata = {
                     msgType: 2,
@@ -293,13 +301,6 @@ export class Bfp {
                     chunkData: buf.slice(-lastPushSize)
                 };
                 finalOpReturn = Bfp.buildMetadataOpReturn(configMetaOpReturn);
-                if (uploadMethod == 2) {
-                    // So a padded P2SH push is not needed
-                    numberOfOuts[transactionCount - 1]--;
-                } else {
-                    // One padded OP_RETURN push is not needed
-                    transactionCount--;
-                }
                 // We already handled the last padDifference
                 buf = buf.slice(0, -lastPushSize);
                 conservativeFileSize -= lastPushSize;
