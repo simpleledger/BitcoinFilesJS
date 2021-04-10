@@ -8,7 +8,7 @@
     "dist/"
   ],
   "scripts": {
-    "test": "npm run build && mocha",
+    "test": "mocha",
     "postinstall": "patch-package",
     "build": "npx tsc && browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
   },
@@ -16,17 +16,6 @@
     "type": "git",
     "url": "git+https://github.com/simpleledgerinc/bitcoinfilesjs.git"
   },
-  "keywords": [
-    "BCH",
-    "bfp",
-    "bitcoin",
-    "cash",
-    "slp",
-    "simple",
-    "ledger",
-    "node",
-    "browser"
-  ],
   "author": "Simple Ledger, Inc.",
   "license": "MIT",
   "unpkg": "dist/bitcoinfiles.min.js",
@@ -37,15 +26,17 @@
   "dependencies": {
     "bitcore-lib-cash": "^8.25.7",
     "buffer": "^6.0.3",
-    "grpc-bchrpc": "^0.0.10",
-    "grpc-bchrpc-node": "^0.15.0"
+    "grpc-bchrpc": "^0.3.0"
   },
   "devDependencies": {
     "@types/bitcore-lib-cash": "^8.23.2",
     "@types/mocha": "^8.2.2",
     "browserify": "^16.2.2",
-    "mocha": "^5.2.0",
+    "grpc-bchrpc-node": "^0.15.0",
+    "mocha": "^8.3.2",
     "patch-package": "^6.2.2",
+    "source-map-support": "^0.5.19",
+    "ts-node": "^9.1.1",
     "uglify-es": "^3.3.9"
   }
 }

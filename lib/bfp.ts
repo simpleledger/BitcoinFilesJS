@@ -55,16 +55,17 @@ export class Bfp {
 
     static get bfpMagicHex() { return "42465000" }
 
-    async uploadHashOnlyObject(type: number, // file = 1,  folder = 3
-        fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
-        fundingAddress: string,           // string
-        fundingWif: string,               // hex string?
-        objectDataArrayBuffer: Buffer,    // ArrayBuffer
-        objectName?: string,              // string
-        objectExt?: string,               // string
-        prevObjectSha256Hex?: string,     // hex string
-        objectExternalUri?: string,       // utf8 string
-        objectReceiverAddress?: string,   // string
+    async uploadHashOnlyObject(
+        type: number,
+        fundingUtxo: utxo,
+        fundingAddress: string,
+        fundingWif: string,
+        objectDataArrayBuffer: Buffer,
+        objectName?: string,
+        objectExt?: string,
+        prevObjectSha256Hex?: string,
+        objectExternalUri?: string,
+        objectReceiverAddress?: string,
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
@@ -152,29 +153,30 @@ export class Bfp {
         return bfTxId;
     }
 
-    async uploadFolderHashOnly(fundingUtxo: utxo,                // object in form: { txid:'', satoshis:#, vout:# }
-        fundingAddress: string,             // string
-        fundingWif: string,                 // hex string?
-        folderDataArrayBuffer: Buffer,        // ArrayBuffer
-        folderName?: string,              // string
-        folderExt?: string,               // string
-        prevFolderSha256Hex?: string,         // hex string
-        folderExternalUri?: string,       // utf8 string
-        folderReceiverAddress?: string,   // string
+    async uploadFolderHashOnly(
+        fundingUtxo: utxo,
+        fundingAddress: string,
+        fundingWif: string,
+        folderDataArrayBuffer: Buffer,
+        folderName?: string,
+        folderExt?: string,
+        prevFolderSha256Hex?: string,
+        folderExternalUri?: string,
+        folderReceiverAddress?: string,
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
         uploadFinishedCallback?: Function) {
         return await this.uploadHashOnlyObject(3,
-            fundingUtxo,                // object in form: { txid:'', satoshis:#, vout:# }
-            fundingAddress,             // string
-            fundingWif,                 // hex string?
-            folderDataArrayBuffer,      // ArrayBuffer
-            folderName,            // string
-            folderExt,             // string
-            prevFolderSha256Hex,   // hex string
-            folderExternalUri,     // utf8 string
-            folderReceiverAddress, // string
+            fundingUtxo,
+            fundingAddress,
+            fundingWif,
+            folderDataArrayBuffer,
+            folderName,
+            folderExt,
+            prevFolderSha256Hex,
+            folderExternalUri,
+            folderReceiverAddress,
             signProgressCallback,
             signFinishedCallback,
             uploadProgressCallback,
@@ -182,29 +184,30 @@ export class Bfp {
         )
     }
 
-    async uploadFileHashOnly(fundingUtxo: utxo,                   // object in form: { txid:'', satoshis:#, vout:# }
-        fundingAddress: string,             // string
-        fundingWif: string,                 // hex string?
-        fileDataArrayBuffer: Buffer,        // ArrayBuffer
-        fileName?: string,              // string
-        fileExt?: string,               // string
-        prevFileSha256Hex?: string,     // hex string
-        fileExternalUri?: string,       // utf8 string
-        fileReceiverAddress?: string,   // string
+    async uploadFileHashOnly(
+        fundingUtxo: utxo,
+        fundingAddress: string,
+        fundingWif: string,
+        fileDataArrayBuffer: Buffer,
+        fileName?: string,
+        fileExt?: string,
+        prevFileSha256Hex?: string,
+        fileExternalUri?: string,
+        fileReceiverAddress?: string,
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
         uploadFinishedCallback?: Function) {
         return await this.uploadHashOnlyObject(1,
-            fundingUtxo,          // object in form: { txid:'', satoshis:#, vout:# }
-            fundingAddress,       // string
-            fundingWif,           // hex string?
-            fileDataArrayBuffer,  // ArrayBuffer
-            fileName,             // string
-            fileExt,              // string
-            prevFileSha256Hex,    // hex string
-            fileExternalUri,      // utf8 string
-            fileReceiverAddress,  // string
+            fundingUtxo,
+            fundingAddress,
+            fundingWif,
+            fileDataArrayBuffer,
+            fileName,
+            fileExt,
+            prevFileSha256Hex,
+            fileExternalUri,
+            fileReceiverAddress,
             signProgressCallback,
             signFinishedCallback,
             uploadProgressCallback,
@@ -212,15 +215,16 @@ export class Bfp {
         )
     }
 
-    async uploadFile(fundingUtxo: utxo,                       // object in form: { txid:'', satoshis:#, vout:# }
-        fundingAddress: string,             // string
-        fundingWif: string,                 // hex string?
-        fileDataArrayBuffer: Buffer,        // ArrayBuffer
-        fileName?: string,              // string
-        fileExt?: string,               // string
-        prevFileSha256Hex?: string,     // hex string
-        fileExternalUri?: string,       // utf8 string
-        fileReceiverAddress?: string,   // string
+    async uploadFile(
+        fundingUtxo: utxo,
+        fundingAddress: string,
+        fundingWif: string,
+        fileDataArrayBuffer: Buffer,
+        fileName?: string,
+        fileExt?: string,
+        prevFileSha256Hex?: string,
+        fileExternalUri?: string,
+        fileReceiverAddress?: string,
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
@@ -415,7 +419,10 @@ export class Bfp {
         return bfTxId;
     }
 
-    async downloadFile(bfpUri: string, progressCallback?: Function) {
+    async downloadFile(
+        bfpUri: string,
+        progressCallback?: Function) {
+
         let chunks = [];
         let size = 0;
 
@@ -476,7 +483,8 @@ export class Bfp {
         return { passesHashCheck, fileBuf };
     }
 
-    static buildMetadataOpReturn(config: FileMetadata) {
+    static buildMetadataOpReturn(
+        config: FileMetadata) {
 
         let script: number[] = [];
 
@@ -570,7 +578,9 @@ export class Bfp {
         return encodedScript;
     }
 
-    static buildDataChunkOpReturn(chunkData: Buffer) {
+    static buildDataChunkOpReturn(
+        chunkData: Buffer) {
+
         let script: number[] = []
 
         // OP Return Prefix

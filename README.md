@@ -4,7 +4,6 @@ bitcoinfilesjs is a JavaScript Library for building transactions for Bitcoin Fil
 
 Other tools using the Bitcoin Files Protocol include:
 * [Electron Cash SLP Edition](http://electroncash.org/#slp)
-* [BitcoinFiles.com](http://bitcoinfiles.com)
 
 [![NPM](https://nodei.co/npm/bitcoinfiles.png)](https://nodei.co/npm/bitcoinfiles/)
 

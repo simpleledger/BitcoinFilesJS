@@ -1,0 +1,12 @@
+language: node_js
+node_js:
+  - 14.15
+
+services:
+  - docker
+
+sudo: false
+
+script:
+  - npm test
+  - sh -c 'cd ./regtest && ./test.sh'
