@@ -277,7 +277,8 @@ export class Bfp {
 
             let lastPushSize = pushSize - padDifference;
             // We forced at least 2 P2SH outputs of the last transaction already
-            if (capacity >= lastPushSize) {
+            // unless the file was too small (the second condition)
+            if ((capacity >= lastPushSize) && !(padDifference > pushSize)) {
                 // add data to metadata push
                 let configMetaOpReturn: FileMetadata = {
                     msgType: 2,
@@ -546,7 +547,7 @@ export class Bfp {
         script.push(config.msgType);
 
         // Chunk Count
-        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 1)
+        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 4);
         script = script.concat(Utils.getPushDataOpcode(chunkCount))
         chunkCount.forEach((item) => script.push(item))
 
@@ -568,7 +569,7 @@ export class Bfp {
             fileExt.forEach((item) => script.push(item));
         }
 
-        let fileSize = Utils.int2FixedBuffer(config.fileSize, 2)
+        let fileSize = Utils.int2FixedBuffer(config.fileSize, 8);
         script = script.concat(Utils.getPushDataOpcode(fileSize))
         fileSize.forEach((item) => script.push(item))
 
