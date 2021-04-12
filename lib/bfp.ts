@@ -1,4 +1,4 @@
-import { Address, Script, Transaction } from "bitcore-lib-cash";
+import { Address, Script, Transaction, PrivateKey } from "bitcore-lib-cash";
 import { Utils } from './utils';
 import { IGrpcClient } from 'grpc-bchrpc';
 
@@ -69,7 +69,7 @@ export class Bfp {
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
-        uploadFinishedCallback?: Function) {
+        uploadFinishedCallback?: Function): Promise<string> {
         let fileSize = objectDataArrayBuffer.byteLength;
         let hash = Utils.Hash256(objectDataArrayBuffer).toString('hex');
 
@@ -166,7 +166,7 @@ export class Bfp {
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
-        uploadFinishedCallback?: Function) {
+        uploadFinishedCallback?: Function): Promise<string> {
         return await this.uploadHashOnlyObject(3,
             fundingUtxo,
             fundingAddress,
@@ -197,7 +197,7 @@ export class Bfp {
         signProgressCallback?: Function,
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
-        uploadFinishedCallback?: Function) {
+        uploadFinishedCallback?: Function): Promise<string> {
         return await this.uploadHashOnlyObject(1,
             fundingUtxo,
             fundingAddress,
@@ -229,30 +229,29 @@ export class Bfp {
         signFinishedCallback?: Function,
         uploadProgressCallback?: Function,
         uploadFinishedCallback?: Function,
-        delay_ms = 500) {
+        delay_ms = 500,
+        uploadMethod = 1): Promise<string> {
 
         let fileSize = fileDataArrayBuffer.byteLength;
         let hash = Utils.Sha256(fileDataArrayBuffer).toString('hex');
 
-        // chunks
-        let chunks = [];
-        let chunkCount = Math.floor(fileSize / 220);
-
-        for (let nId = 0; nId < chunkCount; nId++) {
-            chunks.push(fileDataArrayBuffer.slice(nId * 220, (nId + 1) * 220));
+        // P2SH outputs per transaction
+        let msgType = uploadMethod;
+        let perTransactionCapacity = 0;
+        if (uploadMethod == 2) {
+            perTransactionCapacity = 50;
         }
 
-        // meta
-        if (fileSize % 220) {
-            chunks[chunkCount] = fileDataArrayBuffer.slice(chunkCount * 220, fileSize);
-            chunkCount++;
-        }
+        const perInputCapacity = 1497;
+        let arrangement = Bfp.arrangeOutputs(fileSize, perTransactionCapacity);
+        let conservativeFileSize = arrangement.conservativeFileSize;
+        let numberOfOuts = arrangement.numberOfOuts;
+        let transactionCount = numberOfOuts.length;
 
-        // estimate cost
-        // build empty meta data OpReturn
+        // Build the last OP_RETURN push first
         let configEmptyMetaOpReturn: FileMetadata = {
-            msgType: 1,
-            chunkCount: chunkCount,
+            msgType: msgType,
+            chunkCount: transactionCount,
             fileName: fileName,
             fileExt: fileExt,
             fileSize: fileSize,
@@ -260,101 +259,163 @@ export class Bfp {
             prevFileSha256Hex: prevFileSha256Hex,
             fileUri: fileExternalUri
         };
+        let finalOpReturn = Bfp.buildMetadataOpReturn(configEmptyMetaOpReturn);
+
+        const padDifference = conservativeFileSize - fileSize;
+        let buf = fileDataArrayBuffer;
+        if (padDifference != 0) {
+            if (padDifference < 0) {
+                console.log("Negative padding!")
+            }
+
+            // Handle the case that padding is not needed and last bytes fit into metadata push
+            let capacity = 223 - finalOpReturn.length;
+            let pushSize = 220;
+            if (uploadMethod == 2) {
+                pushSize = perInputCapacity;
+            }
+
+            let lastPushSize = pushSize - padDifference;
+            // We forced at least 2 P2SH outputs of the last transaction already
+            // unless the file was too small (the second condition)
+            if ((capacity >= lastPushSize) && !(padDifference > pushSize)) {
+                // add data to metadata push
+                let configMetaOpReturn: FileMetadata = {
+                    msgType: 2,
+                    // Now, the last tx has a data-containing OP_RETURN too
+                    chunkCount: transactionCount + 1,
+                    fileName: fileName,
+                    fileExt: fileExt,
+                    fileSize: fileSize,
+                    fileSha256Hex: hash,
+                    prevFileSha256Hex: prevFileSha256Hex,
+                    fileUri: fileExternalUri,
+                    chunkData: buf.slice(-lastPushSize)
+                };
+                finalOpReturn = Bfp.buildMetadataOpReturn(configMetaOpReturn);
+                if (uploadMethod == 2) {
+                    // So a padded P2SH push is not needed
+                    numberOfOuts[transactionCount - 1]--;
+                } else {
+                    // One padded OP_RETURN push is not needed
+                    transactionCount--;
+                }
+                // We already handled the last padDifference
+                buf = buf.slice(0, -lastPushSize);
+                conservativeFileSize -= lastPushSize;
+            } else {
+                buf = Buffer.alloc(conservativeFileSize);
+                buf.set(fileDataArrayBuffer);
+            }
+        }
+
+        const privateKey = PrivateKey.fromWIF(fundingWif);
+        const publicKey = privateKey.toPublicKey();
+        let publicKeyAsBuffer = publicKey.toBuffer();
+        let bufferHex = publicKeyAsBuffer.toString('hex');
+        publicKeyAsBuffer.toString = function() {
+            return bufferHex;
+        }
+        const address = Address.fromString(fundingAddress);
+
+        let receiver;
+        if (fileReceiverAddress) {
+            receiver = Address.fromString(fileReceiverAddress);
+        } else {
+            receiver = address;
+        }
 
         //* ** building transaction
-        let transactions = [];
+        let transactions: Transaction[] = [];
+        let fileIndex = 0, tx = new Transaction().feePerByte(this.FEE_RATE);
 
         // show progress
-        let nDiff = 100 / chunkCount;
+        let nDiff = 100 / transactionCount;
         let nCurPos = 0;
 
-        for (let nId = 0; nId < chunkCount; nId++) {
-            // build chunk data OpReturn
-            let chunkOpReturn = Bfp.buildDataChunkOpReturn(chunks[nId]);
+        tx.addInput(
+            new Transaction.Input.PublicKeyHash({
+                output: new Transaction.Output({
+                    script: Script.buildPublicKeyHashOut(address),
+                    satoshis: fundingUtxo.satoshis
+                }),
+                prevTxId: fundingUtxo.txid,
+                outputIndex: fundingUtxo.vout,
+                script: Script.empty()
+            })
+        )
 
-            let txid = '';
-            let satoshis = 0;
-            let vout = 1;
-            if (nId === 0) {
-                txid = fundingUtxo.txid;
-                satoshis = fundingUtxo.satoshis;
-                vout = fundingUtxo.vout;
-            } else {
-                txid = transactions[nId - 1].id;
-                satoshis = transactions[nId - 1].outputs[1].satoshis;
+        for (let nId = 0; nId < transactionCount; nId++) {
+            tx = tx.addData(
+                buf.slice(fileIndex, fileIndex + 220)
+            );
+            fileIndex += 220;
+
+            const outsInThisTX = numberOfOuts[nId];
+            var txStartIndex = fileIndex;
+
+            for (let z = 0; z < outsInThisTX; z++) {
+                tx = tx.addOutput(
+                    new Transaction.Output({
+                        script:
+                            Script.buildScriptHashOut(
+                                (Script as any).buildPushOut(
+                                    [publicKeyAsBuffer], [buf.slice(fileIndex, fileIndex + 1013), buf.slice(fileIndex + 1013, fileIndex + 1497)]
+                                )
+                            ),
+                        satoshis:
+                            546
+                    })
+                );
+                fileIndex += 1497;
             }
 
-            // build chunk data transaction
-            let configChunkTx: DataChunkTxnConfig = {
-                bfpChunkOpReturn: chunkOpReturn,
-                input_utxo: <utxo>{
-                    address: fundingAddress,
-                    txid: txid,
-                    vout: vout,
-                    satoshis: satoshis,
-                    wif: fundingWif
-                }
-            };
+            (tx as any)._changeScript = Script.buildPublicKeyOut(publicKey);
+            (tx as any)._clearSignatures = function() { };
+            (tx as any)._updateChangeOutput();
 
-            let chunksTx = this.buildChunkTx(configChunkTx);
-
-            if (nId === chunkCount - 1) {
-                let emptyOpReturn = Bfp.buildMetadataOpReturn(configEmptyMetaOpReturn);
-                let capacity = 223 - emptyOpReturn.length;
-                if (capacity >= chunks[nId].byteLength) {
-                    // finish with just a single metadata txn
-                    // build meta data OpReturn
-                    let configMetaOpReturn = {
-                        msgType: 1,
-                        chunkCount: chunkCount,
-                        fileName: fileName,
-                        fileExt: fileExt,
-                        fileSize: fileSize,
-                        fileSha256Hex: hash,
-                        prevFileSha256Hex: prevFileSha256Hex,
-                        fileUri: fileExternalUri,
-                        chunkData: chunks[nId]
-                    };
-                    let metaOpReturn = Bfp.buildMetadataOpReturn(configMetaOpReturn);
-
-                    // build meta data transaction
-                    let configMetaTx = {
-                        bfpMetadataOpReturn: metaOpReturn,
-                        input_utxo: {
-                            txid: txid,
-                            vout: vout,
-                            satoshis: satoshis,
-                            wif: fundingWif,
-                            address: fundingAddress
-                        },
-                        fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
-                    };
-                    let metaTx = this.buildMetadataTx(configMetaTx);
-                    transactions.push(metaTx);
-                } else {
-                    // finish with both chunk txn and then final empty metadata txn
-                    transactions.push(chunksTx);
-
-                    let metaOpReturn = Bfp.buildMetadataOpReturn(configEmptyMetaOpReturn);
-
-                    // build meta data transaction
-                    let configMetaTx = {
-                        bfpMetadataOpReturn: metaOpReturn,
-                        input_utxo: {
-                            txid: chunksTx.id,
-                            vout: vout,
-                            satoshis: chunksTx.outputs[1].satoshis,
-                            wif: fundingWif,
-                            address: fundingAddress
-                        },
-                        fileReceiverAddress: fileReceiverAddress != null ? fileReceiverAddress : fundingAddress
-                    };
-                    let metaTx = this.buildMetadataTx(configMetaTx);
-                    transactions.push(metaTx);
-                }
-            } else { // not last transaction
-                transactions.push(chunksTx);
+            if (uploadMethod == 2) {
+                // Set change
+                const changeIndex = (tx as any)._changeIndex;
+                if (!changeIndex) console.log("Not enough funds!")
+                const changeOutput = tx.outputs[changeIndex];
+                const totalOutputAmount = (tx as any)._outputAmount;
+                (tx as any)._removeOutput(changeIndex);
+                (tx as any)._outputAmount = totalOutputAmount;
+                (tx.outputs[1] as any).satoshis += changeOutput.satoshis;
             }
+
+            tx = tx.sign(privateKey);
+            transactions.push(tx);
+
+            const txHash = tx.hash;
+
+            let tx2 = new Transaction().feePerByte(this.FEE_RATE);
+
+            if (outsInThisTX == 0) {
+                tx2 = (tx2 as any).from({
+                    "txid": txHash,
+                    "vout": 1,
+                    "address": address,
+                    "scriptPubKey": tx.outputs[1].script,
+                    "satoshis": tx.outputs[1].satoshis
+                });
+            }
+            for (let i = 1; i <= outsInThisTX; i++) {
+                tx2 = (tx2 as any).from({
+                    "txid": txHash,
+                    "vout": i,
+                    "address": address,
+                    "scriptPubKey": tx.outputs[i].script,
+                    "satoshis": tx.outputs[i].satoshis
+                },
+                    [publicKeyAsBuffer], 1, [
+                        buf.slice(txStartIndex, txStartIndex + 1013),
+                        buf.slice(txStartIndex + 1013, txStartIndex + 1497)
+                    ]);
+                txStartIndex += 1497;
+            }
+            tx = tx2;
 
             // sign progress
             if (signProgressCallback != null) {
@@ -363,55 +424,25 @@ export class Bfp {
             nCurPos += nDiff;
         }
 
+        if (fileIndex != buf.length) {
+            console.log("Padding error " + fileIndex + " " + buf.length)
+        }
+
+        tx.addOutput(new Transaction.Output({
+            script: finalOpReturn,
+            satoshis: 0
+        }));
+
+        const lastTx = tx.change(receiver);
+        if (!(lastTx as any)._changeIndex) console.log("Not enough funds for the last transaction!")
+        transactions.push(lastTx.sign(privateKey));
+
         // progress : signing finished
         if (signFinishedCallback != null) {
             signFinishedCallback();
         }
 
-        //* ** sending transaction
-        nDiff = 100 / transactions.length;
-        nCurPos = 0;
-        if (uploadProgressCallback != null) {
-            uploadProgressCallback(0);
-        }
-        let bfTxId: string;
-        for (let nId = 0; nId < transactions.length; nId++) {
-            console.log('transaction: ', transactions[nId].id);
-
-            while (true) {
-                console.log(`upload progress: ${nCurPos}%`);
-                try {
-                    let txnHex = transactions[nId].uncheckedSerialize();
-                    const res = await this.client.submitTransaction({ txnHex });
-                    bfTxId = Buffer.from(res.getHash_asU8().reverse()).toString("hex");
-                    break;
-                } catch (err) {
-                    if (err.message.includes("fully-spent transaction")) {
-                        console.log(`skipping transaction already spent ${transactions[nId].id}`);
-                        break;
-                    } else if (err.message.includes("transaction already exists")) {
-                        console.log(`transaction already exists ${transactions[nId].id}`);
-                        break;
-                    } else if (err.message.includes("already have transaction")) {
-                        console.log(`already have transaction ${transactions[nId].id}`);
-                        break;
-                    } else {
-                        console.log(`waiting 60 sec to try again: ${err}`);
-                        await sleep(60000);
-                    }
-                }
-            }
-            // progress
-            if (uploadProgressCallback != null) {
-                uploadProgressCallback(nCurPos);
-            }
-            nCurPos += nDiff;
-
-            // delay between transactions
-            await sleep(delay_ms);
-        }
-
-        bfTxId = 'bitcoinfile:' + bfTxId!;
+        let bfTxId = await this.uploadTransactions(transactions, delay_ms, uploadProgressCallback);
         if (uploadFinishedCallback != null) {
             uploadFinishedCallback(bfTxId);
         }
@@ -436,12 +467,15 @@ export class Bfp {
         let bfpMsg = <any>this.parsebfpDataOpReturn(metadata_opreturn_hex);
 
         let downloadCount = bfpMsg.chunk_count;
-        if (bfpMsg.chunk_count > 0 && bfpMsg.chunk != null && bfpMsg.chunk.length > 0) {
-            downloadCount = bfpMsg.chunk_count - 1;
+        if (downloadCount > 0 && bfpMsg.chunk != null && bfpMsg.chunk.length > 0) {
+            downloadCount--;
             chunks.push(bfpMsg.chunk)
             size += <number>bfpMsg.chunk.length;
         }
 
+        let inputData = <any>this.parsebfpDataInput(tx.getTransaction()!.getInputsList());
+        chunks.push(inputData);
+        size += <number>inputData.length;
 
         // Loop through raw transactions, parse out data
         for (let index = 0; index < downloadCount; index++) {
@@ -456,9 +490,21 @@ export class Bfp {
             chunks.push(bfpMsg.chunk);
             size += <number>bfpMsg.chunk.length;
 
+            // parse vin for data
+            let inputData = <any>this.parsebfpDataInput(tx.getTransaction()!.getInputsList());
+            chunks.push(inputData);
+            size += <number>inputData.length;
+
             if (progressCallback) {
                 progressCallback(index / (downloadCount - 1));
             }
+        }
+
+        if (bfpMsg.filesize) {
+            if (size < bfpMsg.filesize) {
+                console.log("Bad length, read too little!");
+            }
+            size = bfpMsg.filesize;
         }
 
         // reverse order of chunks
@@ -483,7 +529,7 @@ export class Bfp {
         return { passesHashCheck, fileBuf };
     }
 
-    static buildMetadataOpReturn(
+    private static buildMetadataOpReturn(
         config: FileMetadata) {
 
         let script: number[] = [];
@@ -501,7 +547,7 @@ export class Bfp {
         script.push(config.msgType);
 
         // Chunk Count
-        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 1)
+        let chunkCount = Utils.int2FixedBuffer(config.chunkCount, 4);
         script = script.concat(Utils.getPushDataOpcode(chunkCount))
         chunkCount.forEach((item) => script.push(item))
 
@@ -523,7 +569,7 @@ export class Bfp {
             fileExt.forEach((item) => script.push(item));
         }
 
-        let fileSize = Utils.int2FixedBuffer(config.fileSize, 2)
+        let fileSize = Utils.int2FixedBuffer(config.fileSize, 8);
         script = script.concat(Utils.getPushDataOpcode(fileSize))
         fileSize.forEach((item) => script.push(item))
 
@@ -578,30 +624,6 @@ export class Bfp {
         return encodedScript;
     }
 
-    static buildDataChunkOpReturn(
-        chunkData: Buffer) {
-
-        let script: number[] = []
-
-        // OP Return Prefix
-        script.push(0x6a)
-
-        // Chunk Data
-        if (chunkData === undefined || chunkData === null || chunkData.length === 0) {
-            [0x4c, 0x00].forEach((item) => script.push(item));
-        } else {
-            let chunkDataBuf = Buffer.from(chunkData);
-            script = script.concat(Utils.getPushDataOpcode(chunkDataBuf));
-            chunkDataBuf.forEach((item) => script.push(item));
-        }
-
-        let encodedScript = Utils.encodeScript(script);
-        if (encodedScript.length > 223) {
-            throw Error("Script too long, must be less than 223 bytes.");
-        }
-        return encodedScript;
-    }
-
     // We may not need this function since the web browser wallet will be receiving funds in a single txn.
     buildFundingTx(config: FundingTxnConfig) {
 
@@ -638,43 +660,7 @@ export class Bfp {
         return tx;
     }
 
-    buildChunkTx(config: DataChunkTxnConfig) {
-
-        let tx = new Transaction();
-        tx.feePerByte(this.FEE_RATE);
-
-        tx.addInput(new Transaction.Input.PublicKeyHash({
-            output: new Transaction.Output({
-                script: Script.buildPublicKeyHashOut(new Address(config.input_utxo.address!)),
-                satoshis: config.input_utxo.satoshis
-            }),
-            prevTxId: Buffer.from(config.input_utxo.txid, "hex"),
-            outputIndex: config.input_utxo.vout,
-            script: Script.empty()
-        }));
-
-        let chunkTxFee = this.calculateDataChunkMinerFee(config.bfpChunkOpReturn.length);
-        let outputAmount = config.input_utxo.satoshis - chunkTxFee;
-
-        // Chunk OpReturn
-        tx.addOutput(new Transaction.Output({
-            script: config.bfpChunkOpReturn,
-            satoshis: 0
-        }));
-
-        // Genesis token mint
-        tx.addOutput(new Transaction.Output({
-            script: new Script(new Address(config.input_utxo.address!)),
-            satoshis: outputAmount
-        }));
-
-        // sign inputs
-        tx.sign(config.input_utxo.wif!);
-
-        return tx;
-    }
-
-    buildMetadataTx(config: MetadataTxnConfig) {
+    private buildMetadataTx(config: MetadataTxnConfig) {
 
         let tx = new Transaction();
         tx.feePerByte(this.FEE_RATE);
@@ -714,7 +700,7 @@ export class Bfp {
         return tx;
     }
 
-    calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
+    private calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
         let fee = 195; // 1 p2pkh and 1 p2pkh output ~195 bytes
         fee += genesisOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
@@ -722,45 +708,67 @@ export class Bfp {
         return fee
     }
 
-    calculateDataChunkMinerFee(sendOpReturnLength: number, feeRate = 1) {
-        let fee = 195; // 1 p2pkh and 1 p2pkh output ~195 bytes
-        fee += sendOpReturnLength
-        fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
-        fee *= feeRate
-        return fee
-    }
+    static calculateFileUploadCost(
+        fileSizeBytes: number,
+        configMetadataOpReturn: FileMetadata,
+        fee_rate = 1,
+        uploadMethod = 1) {
+        let byte_count = 0;
+        if (uploadMethod == 2) {
+            let arrangement = Bfp.arrangeOutputs(fileSizeBytes, 50);
+            let numberOfOuts = arrangement.numberOfOuts;
+            let transactionCount = numberOfOuts.length;
 
-    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate = 1) {
-        let byte_count = fileSizeBytes;
-        let whole_chunks_count = Math.floor(fileSizeBytes / 220);
-        let last_chunk_size = fileSizeBytes % 220;
+            const costConstantSizeWithOPReturn = 258;
+            const costP2SHOut = 32;
+            const costP2SHIn = 1689;
+            const costP2PKHIn = 144;
+            const costP2PKHOut = 35;
 
-        // cost of final transaction's op_return w/o any chunkdata
-        let final_op_return_no_chunk = Bfp.buildMetadataOpReturn(configMetadataOpReturn);
-        byte_count += final_op_return_no_chunk.length;
+            // First transaction
+            let byteCount = costP2PKHIn + costConstantSizeWithOPReturn;
 
-        // cost of final transaction's input/outputs
-        byte_count += 35;
-        byte_count += 148 + 1;
+            for (let i = 1; i < transactionCount; i++ , byteCount += costConstantSizeWithOPReturn) {
+                byteCount += costP2SHIn * numberOfOuts[i - 1] + costP2SHOut * numberOfOuts[i];
+            }
 
-        // cost of chunk trasnsaction op_returns
-        byte_count += (whole_chunks_count + 1) * 3;
+            // Last transaction
+            // transactionCount counts only P2SH-forming transactions
+            byte_count += costConstantSizeWithOPReturn
+                + numberOfOuts[transactionCount - 1] * costP2SHIn
+                + costP2PKHOut;
+        } else {
+            byte_count = fileSizeBytes;
+            let whole_chunks_count = Math.floor(fileSizeBytes / 220);
+            let last_chunk_size = fileSizeBytes % 220;
 
-        if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size)) {
-            // add fees for an extra chunk transaction input/output
-            byte_count += 149 + 35;
-            // opcode cost for chunk op_return
-            byte_count += 16;
+            // cost of final transaction's op_return w/o any chunkdata
+            let final_op_return_no_chunk = Bfp.buildMetadataOpReturn(configMetadataOpReturn);
+            byte_count += final_op_return_no_chunk.length;
+
+            // cost of final transaction's input/outputs
+            byte_count += 35;
+            byte_count += 148 + 1;
+
+            // cost of chunk trasnsaction op_returns
+            byte_count += (whole_chunks_count + 1) * 3;
+
+            if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size)) {
+                // add fees for an extra chunk transaction input/output
+                byte_count += 149 + 35;
+                // opcode cost for chunk op_return
+                byte_count += 16;
+            }
+
+            // output p2pkh
+            byte_count += 35 * (whole_chunks_count);
+
+            // dust input bytes (this is the initial payment for the file upload)
+            byte_count += (148 + 1) * whole_chunks_count;
+
+            // other unaccounted per txn
+            byte_count += 22 * (whole_chunks_count + 1);
         }
-
-        // output p2pkh
-        byte_count += 35 * (whole_chunks_count);
-
-        // dust input bytes (this is the initial payment for the file upload)
-        byte_count += (148 + 1) * whole_chunks_count;
-
-        // other unaccounted per txn
-        byte_count += 22 * (whole_chunks_count + 1);
 
         // dust output to be passed along each txn
         let dust_amount = 546;
@@ -768,7 +776,7 @@ export class Bfp {
         return byte_count * fee_rate + dust_amount;
     }
 
-    static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number) {
+    private static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number) {
         if (chunk_data_length === 0) {
             return true;
         }
@@ -781,7 +789,7 @@ export class Bfp {
         return false;
     }
 
-    parsebfpDataOpReturn(hex: string) {
+    private parsebfpDataOpReturn(hex: string) {
         const decodedScript: any = Script.fromHex(hex);
         let bfpData: any = {}
         bfpData.type = 'metadata'
@@ -810,8 +818,8 @@ export class Bfp {
         }
 
         // 01 = On-chain File
-        if ((script[2] != 'OP_1') && (script[2] != '01')) {
-            throw new Error('Not a BFP file (type 0x01)');
+        if ((script[2] != 'OP_1') && (script[2] != '01') && (script[2] != 'OP_2') && (script[2] != '02')) {
+            throw new Error('Not a BFP file (type 0x01 or 0x02)');
         }
 
         // chunk count
@@ -875,5 +883,157 @@ export class Bfp {
         }
 
         return bfpData;
+    }
+
+    private parsebfpDataInput(inputList: any) {
+        let chunks = [];
+        let len = 0;
+        const inputListLen = inputList.length;
+        for (let i = 0; i < inputListLen; i++) {
+            let hex = Buffer.from(inputList[i].getSignatureScript_asU8()).toString('hex')
+
+            // Normal P2PKH input
+            if (hex.length < 220) {
+                return Buffer.allocUnsafe(0);
+            }
+
+            const script = Script.fromHex(hex).toASM().split(" ");
+
+            let buf = Buffer.from(script[2], 'hex')
+            chunks.push(buf);
+            len += buf.length;
+
+            buf = Buffer.from(script[3], 'hex')
+            chunks.push(buf);
+            len += buf.length;
+
+            const innerScript = Script.fromHex(script[4]).toASM().split(" ");
+
+            buf = Buffer.from(innerScript[9], 'hex')
+            chunks.push(buf);
+            len += buf.length;
+        }
+
+        let fileBuf = Buffer.alloc(len);
+        let index = 0;
+        chunks.forEach(chunk => {
+            chunk.copy(fileBuf, index)
+            index += chunk.length;
+        });
+        return fileBuf;
+    }
+
+    private static arrangeOutputs(fileSize: number, perTransactionCapacity: number) {
+        const perInputCapacity = 1497
+        // Maximum inputs per tx: 50
+        const totalPerTransactionCapacity = perTransactionCapacity * perInputCapacity + 220;
+        let transactionCount = Math.ceil(fileSize / totalPerTransactionCapacity);
+        // Doesn't include the last transaction, which creates no P2SH outputs
+        let numberOfOuts = new Uint8Array(transactionCount);
+        // waterfill
+        numberOfOuts.fill(perTransactionCapacity);
+
+        if (perTransactionCapacity == 0) {
+            // There's no concept of "Outs"
+            // Add padding and calculate the conservative file size with padding
+            let conservativeFileSize = transactionCount * 220;
+            return { conservativeFileSize, numberOfOuts }
+        }
+
+        // calculate the number of outs of last tx
+        const leftOver = (fileSize - (transactionCount - 1) * totalPerTransactionCapacity - 220)
+        numberOfOuts[transactionCount - 1] = Math.ceil(leftOver / perInputCapacity)
+
+        // These may bypass the limit "Maximum inputs per tx: 50"
+        // up to 52, which is safe.
+        if (transactionCount > 1) {
+            // Move one push to the last transaction
+            // This removes the need to waste more space in the
+            // "numberOfOuts[transactionCount - 1] == 0" conditional later
+            if (numberOfOuts[transactionCount - 2] > 1) {
+                numberOfOuts[transactionCount - 2]--;
+                numberOfOuts[transactionCount - 1]++;
+            }
+
+            // Move another push to the last transaction
+            // This may allow us to possibly save space
+            // by moving extra data to the metadata OP_RETURN push
+            // instead of padding to fill one P2SH push
+            // by guaranteeing that there would still be one P2SH push
+            if (numberOfOuts[transactionCount - 2] > 1) {
+                numberOfOuts[transactionCount - 2]--;
+                numberOfOuts[transactionCount - 1]++;
+            } else if ((transactionCount > 2)
+                && (numberOfOuts[transactionCount - 3] > 1)) {
+                // This branch may run only if "Maximum inputs per tx"
+                // is reduced to 1
+                numberOfOuts[transactionCount - 3]--;
+                numberOfOuts[transactionCount - 1]++;
+            }
+        }
+
+        // Transactions are linked by P2SH outputs, so one is needed every time.
+        // This condition is true if the file is little
+        if (numberOfOuts[transactionCount - 1] == 0) {
+            // will be padded later
+            numberOfOuts[transactionCount - 1]++
+        }
+
+        // Add padding and calculate the conservative file size with padding
+        let conservativeFileSize = 0;
+        for (let i = 0; i < transactionCount; i++ , conservativeFileSize += 220) {
+            conservativeFileSize += numberOfOuts[i] * perInputCapacity;
+        }
+
+        return { conservativeFileSize, numberOfOuts }
+    }
+
+    async uploadTransactions(
+        transactions: Transaction[],
+        delay_ms: number,
+        uploadProgressCallback?: Function): Promise<string> {
+        let nDiff = 100 / transactions.length;
+        let nCurPos = 0;
+        if (uploadProgressCallback != null) {
+            uploadProgressCallback(0);
+        }
+        let bfTxId: string;
+        for (let nId = 0; nId < transactions.length; nId++) {
+            console.log('transaction: ', transactions[nId].id);
+
+            while (true) {
+                console.log(`upload progress: ${nCurPos}%`);
+                try {
+                    let txnHex = transactions[nId].uncheckedSerialize();
+                    const res = await this.client.submitTransaction({ txnHex });
+                    bfTxId = Buffer.from(res.getHash_asU8().reverse()).toString("hex");
+                    break;
+                } catch (err) {
+                    if (err.message.includes("fully-spent transaction")) {
+                        console.log(`skipping transaction already spent ${transactions[nId].id}`);
+                        break;
+                    } else if (err.message.includes("transaction already exists")) {
+                        console.log(`transaction already exists ${transactions[nId].id}`);
+                        break;
+                    } else if (err.message.includes("already have transaction")) {
+                        console.log(`already have transaction ${transactions[nId].id}`);
+                        break;
+                    } else {
+                        console.log(`waiting 60 sec to try again: ${err}`);
+                        await sleep(60000);
+                    }
+                }
+            }
+            // progress
+            if (uploadProgressCallback != null) {
+                uploadProgressCallback(nCurPos);
+            }
+            nCurPos += nDiff;
+
+            // delay between transactions
+            await sleep(delay_ms);
+        }
+
+        return 'bitcoinfile:' + bfTxId!;
     }
 }
