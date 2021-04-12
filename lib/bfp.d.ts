@@ -44,19 +44,19 @@ export declare class Bfp {
     uploadHashOnlyObject(type: number, fundingUtxo: utxo, fundingAddress: string, fundingWif: string, objectDataArrayBuffer: Buffer, objectName?: string, objectExt?: string, prevObjectSha256Hex?: string, objectExternalUri?: string, objectReceiverAddress?: string, signProgressCallback?: Function, signFinishedCallback?: Function, uploadProgressCallback?: Function, uploadFinishedCallback?: Function): Promise<string>;
     uploadFolderHashOnly(fundingUtxo: utxo, fundingAddress: string, fundingWif: string, folderDataArrayBuffer: Buffer, folderName?: string, folderExt?: string, prevFolderSha256Hex?: string, folderExternalUri?: string, folderReceiverAddress?: string, signProgressCallback?: Function, signFinishedCallback?: Function, uploadProgressCallback?: Function, uploadFinishedCallback?: Function): Promise<string>;
     uploadFileHashOnly(fundingUtxo: utxo, fundingAddress: string, fundingWif: string, fileDataArrayBuffer: Buffer, fileName?: string, fileExt?: string, prevFileSha256Hex?: string, fileExternalUri?: string, fileReceiverAddress?: string, signProgressCallback?: Function, signFinishedCallback?: Function, uploadProgressCallback?: Function, uploadFinishedCallback?: Function): Promise<string>;
-    uploadFile(fundingUtxo: utxo, fundingAddress: string, fundingWif: string, fileDataArrayBuffer: Buffer, fileName?: string, fileExt?: string, prevFileSha256Hex?: string, fileExternalUri?: string, fileReceiverAddress?: string, signProgressCallback?: Function, signFinishedCallback?: Function, uploadProgressCallback?: Function, uploadFinishedCallback?: Function, delay_ms?: number): Promise<string>;
+    uploadFile(fundingUtxo: utxo, fundingAddress: string, fundingWif: string, fileDataArrayBuffer: Buffer, fileName?: string, fileExt?: string, prevFileSha256Hex?: string, fileExternalUri?: string, fileReceiverAddress?: string, signProgressCallback?: Function, signFinishedCallback?: Function, uploadProgressCallback?: Function, uploadFinishedCallback?: Function, delay_ms?: number, uploadMethod?: number): Promise<string>;
     downloadFile(bfpUri: string, progressCallback?: Function): Promise<{
         passesHashCheck: boolean;
         fileBuf: Buffer;
     }>;
-    static buildMetadataOpReturn(config: FileMetadata): Buffer;
-    static buildDataChunkOpReturn(chunkData: Buffer): Buffer;
+    private static buildMetadataOpReturn;
     buildFundingTx(config: FundingTxnConfig): Transaction;
-    buildChunkTx(config: DataChunkTxnConfig): Transaction;
-    buildMetadataTx(config: MetadataTxnConfig): Transaction;
-    calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate?: number): number;
-    calculateDataChunkMinerFee(sendOpReturnLength: number, feeRate?: number): number;
-    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate?: number): number;
-    static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number): boolean;
-    parsebfpDataOpReturn(hex: string): any;
+    private buildMetadataTx;
+    private calculateMetadataMinerFee;
+    static calculateFileUploadCost(fileSizeBytes: number, configMetadataOpReturn: FileMetadata, fee_rate?: number, uploadMethod?: number): number;
+    private static chunk_can_fit_in_final_opreturn;
+    private parsebfpDataOpReturn;
+    private parsebfpDataInput;
+    private static arrangeOutputs;
+    uploadTransactions(transactions: Transaction[], delay_ms: number, uploadProgressCallback?: Function): Promise<string>;
 }

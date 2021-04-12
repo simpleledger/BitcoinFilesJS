@@ -230,17 +230,16 @@ export class Bfp {
         uploadProgressCallback?: Function,
         uploadFinishedCallback?: Function,
         delay_ms = 500,
-        uploadMethod = 0): Promise<string> {
+        uploadMethod = 1): Promise<string> {
 
         let fileSize = fileDataArrayBuffer.byteLength;
         let hash = Utils.Sha256(fileDataArrayBuffer).toString('hex');
 
         // P2SH outputs per transaction
+        let msgType = uploadMethod;
         let perTransactionCapacity = 0;
-        let msgType = 0x01;
-        if (uploadMethod == 1) {
+        if (uploadMethod == 2) {
             perTransactionCapacity = 50;
-            msgType = 0x02;
         }
 
         const perInputCapacity = 1497;
@@ -272,7 +271,7 @@ export class Bfp {
             // Handle the case that padding is not needed and last bytes fit into metadata push
             let capacity = 223 - finalOpReturn.length;
             let pushSize = 220;
-            if (uploadMethod == 1) {
+            if (uploadMethod == 2) {
                 pushSize = perInputCapacity;
             }
 
@@ -293,7 +292,7 @@ export class Bfp {
                     chunkData: buf.slice(-lastPushSize)
                 };
                 finalOpReturn = Bfp.buildMetadataOpReturn(configMetaOpReturn);
-                if (uploadMethod == 1) {
+                if (uploadMethod == 2) {
                     // So a padded P2SH push is not needed
                     numberOfOuts[transactionCount - 1]--;
                 } else {
@@ -374,7 +373,7 @@ export class Bfp {
             (tx as any)._clearSignatures = function() { };
             (tx as any)._updateChangeOutput();
 
-            if (uploadMethod == 1) {
+            if (uploadMethod == 2) {
                 // Set change
                 const changeIndex = (tx as any)._changeIndex;
                 if (!changeIndex) console.log("Not enough funds!")
@@ -529,7 +528,7 @@ export class Bfp {
         return { passesHashCheck, fileBuf };
     }
 
-    static buildMetadataOpReturn(
+    private static buildMetadataOpReturn(
         config: FileMetadata) {
 
         let script: number[] = [];
@@ -624,30 +623,6 @@ export class Bfp {
         return encodedScript;
     }
 
-    static buildDataChunkOpReturn(
-        chunkData: Buffer) {
-
-        let script: number[] = []
-
-        // OP Return Prefix
-        script.push(0x6a)
-
-        // Chunk Data
-        if (chunkData === undefined || chunkData === null || chunkData.length === 0) {
-            [0x4c, 0x00].forEach((item) => script.push(item));
-        } else {
-            let chunkDataBuf = Buffer.from(chunkData);
-            script = script.concat(Utils.getPushDataOpcode(chunkDataBuf));
-            chunkDataBuf.forEach((item) => script.push(item));
-        }
-
-        let encodedScript = Utils.encodeScript(script);
-        if (encodedScript.length > 223) {
-            throw Error("Script too long, must be less than 223 bytes.");
-        }
-        return encodedScript;
-    }
-
     // We may not need this function since the web browser wallet will be receiving funds in a single txn.
     buildFundingTx(config: FundingTxnConfig) {
 
@@ -684,7 +659,7 @@ export class Bfp {
         return tx;
     }
 
-    buildMetadataTx(config: MetadataTxnConfig) {
+    private buildMetadataTx(config: MetadataTxnConfig) {
 
         let tx = new Transaction();
         tx.feePerByte(this.FEE_RATE);
@@ -724,7 +699,7 @@ export class Bfp {
         return tx;
     }
 
-    calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
+    private calculateMetadataMinerFee(genesisOpReturnLength: number, feeRate = 1) {
         let fee = 195; // 1 p2pkh and 1 p2pkh output ~195 bytes
         fee += genesisOpReturnLength
         fee += 10 // added to account for OP_RETURN ammount of 0000000000000000
@@ -736,9 +711,9 @@ export class Bfp {
         fileSizeBytes: number,
         configMetadataOpReturn: FileMetadata,
         fee_rate = 1,
-        uploadMethod = 0) {
+        uploadMethod = 1) {
         let byte_count = 0;
-        if (uploadMethod == 1) {
+        if (uploadMethod == 2) {
             let arrangement = Bfp.arrangeOutputs(fileSizeBytes, 50);
             let numberOfOuts = arrangement.numberOfOuts;
             let transactionCount = numberOfOuts.length;
@@ -800,7 +775,7 @@ export class Bfp {
         return byte_count * fee_rate + dust_amount;
     }
 
-    static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number) {
+    private static chunk_can_fit_in_final_opreturn(script_length: number, chunk_data_length: number) {
         if (chunk_data_length === 0) {
             return true;
         }
@@ -813,7 +788,7 @@ export class Bfp {
         return false;
     }
 
-    parsebfpDataOpReturn(hex: string) {
+    private parsebfpDataOpReturn(hex: string) {
         const decodedScript: any = Script.fromHex(hex);
         let bfpData: any = {}
         bfpData.type = 'metadata'
@@ -909,7 +884,7 @@ export class Bfp {
         return bfpData;
     }
 
-    parsebfpDataInput(inputList: any) {
+    private parsebfpDataInput(inputList: any) {
         let chunks = [];
         let len = 0;
         const inputListLen = inputList.length;
@@ -947,7 +922,7 @@ export class Bfp {
         return fileBuf;
     }
 
-    static arrangeOutputs(fileSize: number, perTransactionCapacity: number) {
+    private static arrangeOutputs(fileSize: number, perTransactionCapacity: number) {
         const perInputCapacity = 1497
         // Maximum inputs per tx: 50
         const totalPerTransactionCapacity = perTransactionCapacity * perInputCapacity + 220;

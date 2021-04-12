@@ -146,7 +146,7 @@ describe("Bitcoin File type 0x02", () => {
     } as utxo;
 
     const cb = (inp: string) => { console.log(inp); }
-    fileID = await bfp.uploadFile(txo, wallet2.bchRegtestAddress, wallet2.wif, fileBuf, "mario", "png", undefined, undefined, wallet2.bchRegtestAddress, cb, cb, cb, cb, 0, 1);
+    fileID = await bfp.uploadFile(txo, wallet2.bchRegtestAddress, wallet2.wif, fileBuf, "mario", "png", undefined, undefined, wallet2.bchRegtestAddress, cb, cb, cb, cb, 0, 2);
   });
 
   step("Download an 0x02 file", async function() {
