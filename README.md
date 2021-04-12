@@ -1,6 +1,6 @@
-# bitcoinfilesjs
+# BitcoinFilesJS
 
-bitcoinfilesjs is a JavaScript Library for building transactions for Bitcoin Files Protocol (BFP).  Methods for uploading and downloading files are provided [per the BFP specification](https://github.com/simpleledger/slp-specification/blob/master/bitcoinfiles.md).
+This is a JavaScript Library for uploading and downloading files per the Bitcoin Files Protocol [specification](https://github.com/simpleledger/slp-specification/blob/master/bitcoinfiles.md).  It's important to understand that files uploaded to any blockchain are permanent and cannot be deleted.  All uploaded content is associated with the public key(s) you use to pay for uploading the content.
 
 Other tools using the Bitcoin Files Protocol include:
 * [Electron Cash SLP Edition](http://electroncash.org/#slp)
