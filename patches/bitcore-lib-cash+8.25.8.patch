@@ -82,7 +82,7 @@ index 4a4ca80..14135c2 100644
   * @returns {Script} a new pay to public key hash output for the given
   * address or public key
 diff --git a/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js b/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
-index 7d00787..599975a 100644
+index 7d00787..b4c1e10 100644
 --- a/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
 +++ b/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
 @@ -16,6 +16,10 @@ var TransactionSignature = require('../signature');
@@ -148,7 +148,7 @@ index 7d00787..599975a 100644
 -    this.threshold * MultiSigScriptHashInput.SIGNATURE_SIZE +
 -    this.publicKeys.length * MultiSigScriptHashInput.PUBKEY_SIZE;
 +  return 33 + 3 + this.opts[0].length + 
-+    74+34+3+3+this.opts[1].length+3;
++    74+34+3+3+this.opts[1].length+3+8;
  };
  
  module.exports = MultiSigScriptHashInput;
