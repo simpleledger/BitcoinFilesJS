@@ -242,7 +242,7 @@ export class Bfp {
             perTransactionCapacity = 50;
         }
 
-        const perInputCapacity = 1497;
+        const perInputCapacity = 1505;
         let arrangement = Bfp.arrangeOutputs(fileSize, perTransactionCapacity);
         let conservativeFileSize = arrangement.conservativeFileSize;
         let numberOfOuts = arrangement.numberOfOuts;
@@ -361,14 +361,14 @@ export class Bfp {
                         script:
                             Script.buildScriptHashOut(
                                 (Script as any).buildPushOut(
-                                    [publicKeyAsBuffer], [buf.slice(fileIndex, fileIndex + 1013), buf.slice(fileIndex + 1013, fileIndex + 1497)]
+                                    [publicKeyAsBuffer], [buf.slice(fileIndex, fileIndex + 1021), buf.slice(fileIndex + 1021, fileIndex + 1505)]
                                 )
                             ),
                         satoshis:
                             546
                     })
                 );
-                fileIndex += 1497;
+                fileIndex += 1505;
             }
 
             (tx as any)._changeScript = Script.buildPublicKeyOut(publicKey);
@@ -386,7 +386,7 @@ export class Bfp {
                 (tx.outputs[1] as any).satoshis += changeOutput.satoshis;
             }
 
-            tx = tx.sign(privateKey);
+            tx = tx.sign(privateKey, null as any, "schnorr");
             transactions.push(tx);
 
             const txHash = tx.hash;
@@ -411,10 +411,10 @@ export class Bfp {
                     "satoshis": tx.outputs[i].satoshis
                 },
                     [publicKeyAsBuffer], 1, [
-                        buf.slice(txStartIndex, txStartIndex + 1013),
-                        buf.slice(txStartIndex + 1013, txStartIndex + 1497)
+                        buf.slice(txStartIndex, txStartIndex + 1021),
+                        buf.slice(txStartIndex + 1021, txStartIndex + 1505)
                     ]);
-                txStartIndex += 1497;
+                txStartIndex += 1505;
             }
             tx = tx2;
 
@@ -436,7 +436,7 @@ export class Bfp {
 
         const lastTx = tx.change(receiver);
         if (!(lastTx as any)._changeIndex) console.log("Not enough funds for the last transaction!")
-        transactions.push(lastTx.sign(privateKey));
+        transactions.push(lastTx.sign(privateKey, null as any, "schnorr"));
 
         // progress : signing finished
         if (signFinishedCallback != null) {
@@ -656,7 +656,7 @@ export class Bfp {
         }));
 
         // sign inputs
-        tx.sign([...config.input_utxos.map(o => o.wif!)]);
+        tx.sign([...config.input_utxos.map(o => o.wif!)], null as any, "schnorr");
 
         return tx;
     }
@@ -696,7 +696,7 @@ export class Bfp {
         }));
 
         // sign inputs
-        tx.sign(config.input_utxo.wif!);
+        tx.sign(config.input_utxo.wif!, null as any, "schnorr");
 
         return tx;
     }
@@ -925,7 +925,7 @@ export class Bfp {
     }
 
     private static arrangeOutputs(fileSize: number, perTransactionCapacity: number) {
-        const perInputCapacity = 1497
+        const perInputCapacity = 1505;
         // Maximum inputs per tx: 50
         const totalPerTransactionCapacity = perTransactionCapacity * perInputCapacity + 220;
         let transactionCount = Math.ceil(fileSize / totalPerTransactionCapacity);

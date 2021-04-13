@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/simpleledgerinc/bitcoinfilesjs#readme",
   "dependencies": {
-    "bitcore-lib-cash": "^8.25.7",
+    "bitcore-lib-cash": "8.25.8",
     "buffer": "^6.0.3",
     "grpc-bchrpc": "^0.3.0"
   },
