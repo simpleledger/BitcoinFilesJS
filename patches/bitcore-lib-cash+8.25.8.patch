@@ -13,6 +13,28 @@ index a562c53..eaa3746 100644
  
  // crypto
  bitcore.crypto = {};
+diff --git a/node_modules/bitcore-lib-cash/lib/crypto/signature.js b/node_modules/bitcore-lib-cash/lib/crypto/signature.js
+index 3c9a6f5..661f799 100644
+--- a/node_modules/bitcore-lib-cash/lib/crypto/signature.js
++++ b/node_modules/bitcore-lib-cash/lib/crypto/signature.js
+@@ -214,14 +214,13 @@ Signature.prototype.toBuffer = Signature.prototype.toDER = function(signingMetho
+ 
+   signingMethod = signingMethod || "ecdsa";
+ 
++  if(signingMethod === "schnorr") {
++    return Buffer.concat([this.r.toBuffer({size: 32}), this.s.toBuffer({size: 32})]);
++  }
+ 
+   var rnbuf = this.r.toBuffer();
+   var snbuf = this.s.toBuffer();
+   
+-  if(signingMethod === "schnorr") {
+-    return Buffer.concat([rnbuf, snbuf]);
+-  }
+-  
+   var rneg = rnbuf[0] & 0x80 ? true : false;
+   var sneg = snbuf[0] & 0x80 ? true : false;
+ 
 diff --git a/node_modules/bitcore-lib-cash/lib/script/script.js b/node_modules/bitcore-lib-cash/lib/script/script.js
 index 4a4ca80..14135c2 100644
 --- a/node_modules/bitcore-lib-cash/lib/script/script.js
