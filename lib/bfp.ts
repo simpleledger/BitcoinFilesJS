@@ -44,6 +44,9 @@ export interface DataChunkTxnConfig {
     input_utxo: utxo
 }
 
+const p2shPushLength = 1505;
+const p2shScriptPubKeySeparator = 1021;
+
 export class Bfp {
     client: IGrpcClient;
 
@@ -242,7 +245,6 @@ export class Bfp {
             perTransactionCapacity = 50;
         }
 
-        const perInputCapacity = 1497;
         let arrangement = Bfp.arrangeOutputs(fileSize, perTransactionCapacity);
         let conservativeFileSize = arrangement.conservativeFileSize;
         let numberOfOuts = arrangement.numberOfOuts;
@@ -272,7 +274,7 @@ export class Bfp {
             let capacity = 223 - finalOpReturn.length;
             let pushSize = 220;
             if (uploadMethod == 2) {
-                pushSize = perInputCapacity;
+                pushSize = p2shPushLength;
             }
 
             let lastPushSize = pushSize - padDifference;
@@ -361,14 +363,17 @@ export class Bfp {
                         script:
                             Script.buildScriptHashOut(
                                 (Script as any).buildPushOut(
-                                    [publicKeyAsBuffer], [buf.slice(fileIndex, fileIndex + 1013), buf.slice(fileIndex + 1013, fileIndex + 1497)]
+                                    [publicKeyAsBuffer], [
+                                        buf.slice(fileIndex, fileIndex + p2shScriptPubKeySeparator),
+                                        buf.slice(fileIndex + p2shScriptPubKeySeparator, fileIndex + p2shPushLength)
+                                    ]
                                 )
                             ),
                         satoshis:
                             546
                     })
                 );
-                fileIndex += 1497;
+                fileIndex += p2shPushLength;
             }
 
             (tx as any)._changeScript = Script.buildPublicKeyOut(publicKey);
@@ -386,7 +391,7 @@ export class Bfp {
                 (tx.outputs[1] as any).satoshis += changeOutput.satoshis;
             }
 
-            tx = tx.sign(privateKey);
+            tx = tx.sign(privateKey, null as any, "schnorr");
             transactions.push(tx);
 
             const txHash = tx.hash;
@@ -411,10 +416,10 @@ export class Bfp {
                     "satoshis": tx.outputs[i].satoshis
                 },
                     [publicKeyAsBuffer], 1, [
-                        buf.slice(txStartIndex, txStartIndex + 1013),
-                        buf.slice(txStartIndex + 1013, txStartIndex + 1497)
+                        buf.slice(txStartIndex, txStartIndex + p2shScriptPubKeySeparator),
+                        buf.slice(txStartIndex + p2shScriptPubKeySeparator, txStartIndex + p2shPushLength)
                     ]);
-                txStartIndex += 1497;
+                txStartIndex += p2shPushLength;
             }
             tx = tx2;
 
@@ -436,7 +441,7 @@ export class Bfp {
 
         const lastTx = tx.change(receiver);
         if (!(lastTx as any)._changeIndex) console.log("Not enough funds for the last transaction!")
-        transactions.push(lastTx.sign(privateKey));
+        transactions.push(lastTx.sign(privateKey, null as any, "schnorr"));
 
         // progress : signing finished
         if (signFinishedCallback != null) {
@@ -656,7 +661,7 @@ export class Bfp {
         }));
 
         // sign inputs
-        tx.sign([...config.input_utxos.map(o => o.wif!)]);
+        tx.sign([...config.input_utxos.map(o => o.wif!)], null as any, "schnorr");
 
         return tx;
     }
@@ -696,7 +701,7 @@ export class Bfp {
         }));
 
         // sign inputs
-        tx.sign(config.input_utxo.wif!);
+        tx.sign(config.input_utxo.wif!, null as any, "schnorr");
 
         return tx;
     }
@@ -925,9 +930,8 @@ export class Bfp {
     }
 
     private static arrangeOutputs(fileSize: number, perTransactionCapacity: number) {
-        const perInputCapacity = 1497
         // Maximum inputs per tx: 50
-        const totalPerTransactionCapacity = perTransactionCapacity * perInputCapacity + 220;
+        const totalPerTransactionCapacity = perTransactionCapacity * p2shPushLength + 220;
         let transactionCount = Math.ceil(fileSize / totalPerTransactionCapacity);
         // Doesn't include the last transaction, which creates no P2SH outputs
         let numberOfOuts = new Uint8Array(transactionCount);
@@ -943,7 +947,7 @@ export class Bfp {
 
         // calculate the number of outs of last tx
         const leftOver = (fileSize - (transactionCount - 1) * totalPerTransactionCapacity - 220)
-        numberOfOuts[transactionCount - 1] = Math.ceil(leftOver / perInputCapacity)
+        numberOfOuts[transactionCount - 1] = Math.ceil(leftOver / p2shPushLength)
 
         // These may bypass the limit "Maximum inputs per tx: 50"
         // up to 52, which is safe.
@@ -983,7 +987,7 @@ export class Bfp {
         // Add padding and calculate the conservative file size with padding
         let conservativeFileSize = 0;
         for (let i = 0; i < transactionCount; i++ , conservativeFileSize += 220) {
-            conservativeFileSize += numberOfOuts[i] * perInputCapacity;
+            conservativeFileSize += numberOfOuts[i] * p2shPushLength;
         }
 
         return { conservativeFileSize, numberOfOuts }

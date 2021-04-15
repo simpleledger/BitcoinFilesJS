@@ -13,6 +13,28 @@ index a562c53..eaa3746 100644
  
  // crypto
  bitcore.crypto = {};
+diff --git a/node_modules/bitcore-lib-cash/lib/crypto/signature.js b/node_modules/bitcore-lib-cash/lib/crypto/signature.js
+index 3c9a6f5..661f799 100644
+--- a/node_modules/bitcore-lib-cash/lib/crypto/signature.js
++++ b/node_modules/bitcore-lib-cash/lib/crypto/signature.js
+@@ -214,14 +214,13 @@ Signature.prototype.toBuffer = Signature.prototype.toDER = function(signingMetho
+ 
+   signingMethod = signingMethod || "ecdsa";
+ 
++  if(signingMethod === "schnorr") {
++    return Buffer.concat([this.r.toBuffer({size: 32}), this.s.toBuffer({size: 32})]);
++  }
+ 
+   var rnbuf = this.r.toBuffer();
+   var snbuf = this.s.toBuffer();
+   
+-  if(signingMethod === "schnorr") {
+-    return Buffer.concat([rnbuf, snbuf]);
+-  }
+-  
+   var rneg = rnbuf[0] & 0x80 ? true : false;
+   var sneg = snbuf[0] & 0x80 ? true : false;
+ 
 diff --git a/node_modules/bitcore-lib-cash/lib/script/script.js b/node_modules/bitcore-lib-cash/lib/script/script.js
 index 4a4ca80..14135c2 100644
 --- a/node_modules/bitcore-lib-cash/lib/script/script.js
@@ -82,7 +104,7 @@ index 4a4ca80..14135c2 100644
   * @returns {Script} a new pay to public key hash output for the given
   * address or public key
 diff --git a/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js b/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
-index 7d00787..b4c1e10 100644
+index 7d00787..8baec9c 100644
 --- a/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
 +++ b/node_modules/bitcore-lib-cash/lib/transaction/input/multisigscripthash.js
 @@ -16,6 +16,10 @@ var TransactionSignature = require('../signature');
@@ -147,8 +169,8 @@ index 7d00787..b4c1e10 100644
 -  return MultiSigScriptHashInput.OPCODES_SIZE +
 -    this.threshold * MultiSigScriptHashInput.SIGNATURE_SIZE +
 -    this.publicKeys.length * MultiSigScriptHashInput.PUBKEY_SIZE;
-+  return 33 + 3 + this.opts[0].length + 
-+    74+34+3+3+this.opts[1].length+3+8;
++  return 149 + this.opts[0].length + 
++    this.opts[1].length;
  };
  
  module.exports = MultiSigScriptHashInput;
