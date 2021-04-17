@@ -61,18 +61,11 @@ const fileSize = someFileBuffer.length
 const fileSha256Hex = Utils.Sha256(someFileBuffer).toString('hex');
 
 // 2 - estimate upload cost for funding the transaction
-let config = {
-    msgType: 1,
-    chunkCount: 1,
-    fileName: fileName,
-    fileExt: fileExt,
-    fileSize: fileSize,
-    fileSha256Hex: fileSha256Hex,
-    prevFileSha256Hex: null,
-    fileUri: null,
-    chunkData: null  // chunk not needed for cost estimate stage
-};
-let uploadCost = Bfp.calculateFileUploadCost(fileSize, config);
+let uploadCost = Bfp.calculateFileUploadCost(fileSize);
+
+// Alternatively, use the new protocol intended for larger files:
+// let uploadCost = Bfp.calculateFileUploadCost(fileSize, null, 1, 2);
+
 console.log('upload cost: ', uploadCost);
 
 // 3 - create a funding transaction
@@ -163,16 +156,16 @@ Returns an object with `passesHashCheck` which determines if downloading was suc
 ```typescript
 static calculateFileUploadCost(
     fileSizeBytes: number,
-    configMetadataOpReturn: FileMetadata,
+    configMetadataOpReturn?: FileMetadata,
     fee_rate?: number,
     uploadMethod?: number): number;
 ```
 
-Mandatory parameters:
+Mandatory parameter:
 `fileSizeBytes` is the length of file contents in terms of octets
-`configMetadataOpReturn` is the metadata that would be uploaded with the file
 
 Optional parameters:
+`configMetadataOpReturn` is the metadata that would be uploaded with the file, passing this instead of `null` may yield a better estimate with a lower calculated cost
 `fee_rate` is the fee rate in satoshis per byte
 `uploadMethod` is the upload protocol; see `uploadFile` documentation for details
 
