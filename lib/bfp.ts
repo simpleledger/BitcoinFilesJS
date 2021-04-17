@@ -717,10 +717,9 @@ export class Bfp {
     static calculateFileUploadCost(
         fileSizeBytes: number,
         configMetadataOpReturn: FileMetadata,
-        fee_rate = 1,
-        uploadMethod = 1) {
+        fee_rate = 1) {
         let byte_count = 0;
-        if (uploadMethod == 2) {
+        if (configMetadataOpReturn.msgType == 2) {
             let arrangement = Bfp.arrangeOutputs(fileSizeBytes, 50);
             let numberOfOuts = arrangement.numberOfOuts;
             let transactionCount = numberOfOuts.length;
