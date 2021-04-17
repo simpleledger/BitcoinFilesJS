@@ -716,7 +716,7 @@ export class Bfp {
 
     static calculateFileUploadCost(
         fileSizeBytes: number,
-        configMetadataOpReturn: FileMetadata,
+        configMetadataOpReturn?: FileMetadata,
         fee_rate = 1,
         uploadMethod = 1) {
         let byte_count = 0;
@@ -749,8 +749,14 @@ export class Bfp {
             let last_chunk_size = fileSizeBytes % 220;
 
             // cost of final transaction's op_return w/o any chunkdata
-            let final_op_return_no_chunk = Bfp.buildMetadataOpReturn(configMetadataOpReturn);
-            byte_count += final_op_return_no_chunk.length;
+            let final_op_return_no_chunk;
+
+            if (configMetadataOpReturn) {
+                final_op_return_no_chunk = Bfp.buildMetadataOpReturn(configMetadataOpReturn);
+                byte_count += final_op_return_no_chunk.length;
+            } else {
+                byte_count += 223;
+            }
 
             // cost of final transaction's input/outputs
             byte_count += 35;
@@ -759,7 +765,8 @@ export class Bfp {
             // cost of chunk trasnsaction op_returns
             byte_count += (whole_chunks_count + 1) * 3;
 
-            if (!Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size)) {
+            if (!final_op_return_no_chunk
+                || !Bfp.chunk_can_fit_in_final_opreturn(final_op_return_no_chunk.length, last_chunk_size)) {
                 // add fees for an extra chunk transaction input/output
                 byte_count += 149 + 35;
                 // opcode cost for chunk op_return

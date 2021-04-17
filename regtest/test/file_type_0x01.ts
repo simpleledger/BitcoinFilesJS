@@ -200,4 +200,27 @@ describe("Bitcoin File type 0x01", () => {
     let result = await bfp.downloadFile(fileID);
     assert.strictEqual(result.passesHashCheck, true);
   });
+
+  step("Upload and download a 0x01 file 5 bytes", async function() {
+    this.timeout(10000);
+    resBal = await bchd1Grpc.getAddressUtxos({ address: wallet2.bchRegtestAddress, includeMempool: true });
+    const output = resBal.getOutputsList()[resBal.getOutputsList().length-1]!;
+
+    const filePath = "./content/mario.png";
+    const fileBuf = fs.readFileSync(filePath).slice(0, 5);
+
+    let txo = {
+      txid: Buffer.from(output.getOutpoint()!.getHash_asU8()).reverse().toString('hex'),
+      vout: output.getOutpoint()!.getIndex(),
+      satoshis: output.getValue(),
+      wif: wallet2.wif,
+      address: wallet2.bchRegtestAddress,
+    } as utxo;
+
+    const cb = (inp: string) => { console.log(inp); }
+    fileID = await bfp.uploadFile(txo, wallet2.bchRegtestAddress, wallet2.wif, fileBuf, "mario", "png", undefined, undefined, wallet2.bchRegtestAddress, cb, cb, cb, cb, 100, 1);
+
+    let result = await bfp.downloadFile(fileID);
+    assert.strictEqual(result.passesHashCheck, true);
+  });
 });
