@@ -1,5 +1,6 @@
 import { Address, Script, Transaction, PrivateKey } from "bitcore-lib-cash";
 import { Utils } from './utils';
+import { PushScriptHashInput, buildPushOut } from './pushoutput';
 import { IGrpcClient } from 'grpc-bchrpc';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -362,11 +363,11 @@ export class Bfp {
                     new Transaction.Output({
                         script:
                             Script.buildScriptHashOut(
-                                (Script as any).buildPushOut(
+                                buildPushOut(
                                     [publicKeyAsBuffer], [
-                                        buf.slice(fileIndex, fileIndex + p2shScriptPubKeySeparator),
-                                        buf.slice(fileIndex + p2shScriptPubKeySeparator, fileIndex + p2shPushLength)
-                                    ]
+                                    buf.slice(fileIndex, fileIndex + p2shScriptPubKeySeparator),
+                                    buf.slice(fileIndex + p2shScriptPubKeySeparator, fileIndex + p2shPushLength)
+                                ]
                                 )
                             ),
                         satoshis:
@@ -408,17 +409,25 @@ export class Bfp {
                 });
             }
             for (let i = 1; i <= outsInThisTX; i++) {
-                tx2 = (tx2 as any).from({
-                    "txid": txHash,
-                    "vout": i,
-                    "address": address,
-                    "scriptPubKey": tx.outputs[i].script,
-                    "satoshis": tx.outputs[i].satoshis
-                },
-                    [publicKeyAsBuffer], 1, [
-                        buf.slice(txStartIndex, txStartIndex + p2shScriptPubKeySeparator),
-                        buf.slice(txStartIndex + p2shScriptPubKeySeparator, txStartIndex + p2shPushLength)
-                    ]);
+                let out = new Transaction.Output({
+                    script: tx.outputs[i].script,
+                    satoshis: tx.outputs[i].satoshis
+                });
+                let utxo = {
+                    output: out,
+                    prevTxId: txHash,
+                    outputIndex: i,
+                    script: Script.empty()
+                };
+                // @ts-ignore
+                let pushin = new PushScriptHashInput(utxo,
+                    [publicKeyAsBuffer], 1, undefined, [
+                    buf.slice(txStartIndex, txStartIndex + p2shScriptPubKeySeparator),
+                    buf.slice(txStartIndex + p2shScriptPubKeySeparator, txStartIndex + p2shPushLength)
+                ]
+                );
+
+                tx2.addInput(pushin as any);
                 txStartIndex += p2shPushLength;
             }
             tx = tx2;
@@ -465,7 +474,6 @@ export class Bfp {
 
         let txid = bfpUri.replace('bitcoinfile:', '');
         txid = txid.replace('bitcoinfiles:', '');
-
 
         let tx = await this.client.getTransaction({ hash: txid, reversedHashOrder: true });
         let prevHash = Buffer.from(tx.getTransaction()!.getInputsList()[0].getOutpoint()!.getHash_asU8()).toString('hex');
