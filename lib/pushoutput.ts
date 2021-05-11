@@ -1,5 +1,14 @@
+
+// Disable version guard
+// @ts-ignore
+global._bitcoreCash = global._bitcore = undefined
+
 // @ts-ignore
 import { deps, Script, Transaction, Signature, util, Opcode, crypto } from "bitcore-lib-cash";
+
+// @ts-ignore
+global._bitcoreCash = global._bitcore = undefined
+
 var inherits = require("inherits");
 
 // Based on code for MultisigScriptHash
