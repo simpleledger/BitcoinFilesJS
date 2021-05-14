@@ -9,7 +9,6 @@
   ],
   "scripts": {
     "test": "mocha",
-    "postinstall": "patch-package",
     "build": "npx tsc && browserify index.js --standalone bitcoinfiles > dist/bitcoinfiles.js && uglifyjs dist/bitcoinfiles.js > dist/bitcoinfiles.min.js"
   },
   "repository": {
@@ -24,7 +23,7 @@
   },
   "homepage": "https://github.com/simpleledgerinc/bitcoinfilesjs#readme",
   "dependencies": {
-    "bitcore-lib-cash": "8.25.8",
+    "bitcore-lib-cash": "^8.25.9",
     "buffer": "^6.0.3",
     "grpc-bchrpc": "^0.3.0"
   },
@@ -34,7 +33,6 @@
     "browserify": "^16.2.2",
     "grpc-bchrpc-node": "^0.15.0",
     "mocha": "^8.3.2",
-    "patch-package": "^6.2.2",
     "source-map-support": "^0.5.19",
     "ts-node": "^9.1.1",
     "uglify-es": "^3.3.9"

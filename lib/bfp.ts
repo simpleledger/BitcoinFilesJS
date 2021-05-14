@@ -1,4 +1,13 @@
+
+// Disable version guard
+// @ts-ignore
+global._bitcoreCash = global._bitcore = undefined
+
 import { Address, Script, Transaction, PrivateKey } from "bitcore-lib-cash";
+
+// @ts-ignore
+global._bitcoreCash = global._bitcore = undefined
+
 import { Utils } from './utils';
 import { PushScriptHashInput, buildPushOut } from './pushoutput';
 import { IGrpcClient } from 'grpc-bchrpc';
@@ -413,12 +422,12 @@ export class Bfp {
                     script: tx.outputs[i].script,
                     satoshis: tx.outputs[i].satoshis
                 });
-                let utxo = {
+                let utxo = new Transaction.UnspentOutput({
                     output: out,
                     prevTxId: txHash,
                     outputIndex: i,
                     script: Script.empty()
-                };
+                });
                 // @ts-ignore
                 let pushin = new PushScriptHashInput(utxo,
                     [publicKeyAsBuffer], 1, undefined, [
